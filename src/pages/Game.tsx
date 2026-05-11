@@ -1,0 +1,403 @@
+import { useEffect, useState, useRef } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { doc, onSnapshot, collection, setDoc, updateDoc, serverTimestamp, getDoc, increment, query, where } from "firebase/firestore";
+import { db, auth, handleFirestoreError, OperationType } from "../lib/firebase";
+import { useAuth } from "../contexts/AuthContext";
+import { Trophy, Clock, Users, ArrowRight, Check, X, Loader2, Award, Sparkles } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { cn } from "../lib/utils";
+
+export function Game() {
+  const { sessionId } = useParams();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  
+  const [session, setSession] = useState<any>(null);
+  const [quiz, setQuiz] = useState<any>(null);
+  const [participants, setParticipants] = useState<any[]>([]);
+  const [responses, setResponses] = useState<any[]>([]);
+  const [myResponse, setMyResponse] = useState<any>(null);
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [showResults, setShowResults] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (!sessionId || !user) return;
+
+    const unsubSession = onSnapshot(doc(db, "sessions", sessionId), async (sessionDoc) => {
+      if (!sessionDoc.exists()) {
+        navigate("/");
+        return;
+      }
+      const data = sessionDoc.data();
+      setSession({ id: sessionDoc.id, ...data });
+
+      if (data.status === "finished") {
+        navigate(`/results/${sessionId}`);
+        return;
+      }
+
+      // Fetch quiz if not already fetched
+      if (!quiz || quiz.id !== data.quizId) {
+        const quizDoc = await getDoc(doc(db, "quizzes", data.quizId));
+        if (quizDoc.exists()) {
+          setQuiz({ id: quizDoc.id, ...quizDoc.data() });
+        }
+      }
+
+      setLoading(false);
+    });
+
+    const unsubParticipants = onSnapshot(collection(db, `sessions/${sessionId}/participants`), (snapshot) => {
+      setParticipants(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)).sort((a: any, b: any) => b.score - a.score));
+    });
+
+    const responsesQuery = session?.hostId === user.uid 
+      ? collection(db, `sessions/${sessionId}/responses`) 
+      : query(collection(db, `sessions/${sessionId}/responses`), where("participantId", "==", user.uid));
+
+    const unsubResponses = onSnapshot(responsesQuery, (snapshot) => {
+      const allResponses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+      setResponses(allResponses);
+      
+      if (session) {
+        const myRes = allResponses.find((r: any) => r.participantId === user.uid && r.questionIndex === session.currentQuestionIndex);
+        setMyResponse(myRes || null);
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, `sessions/${sessionId}/responses`);
+    });
+
+    return () => {
+      unsubSession();
+      unsubParticipants();
+      unsubResponses();
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [sessionId, user, navigate, quiz?.id, session?.currentQuestionIndex]);
+
+  // Timer logic
+  useEffect(() => {
+    if (session?.status === "in-progress" && quiz && session.currentQuestionIndex >= 0) {
+      const q = quiz.questions[session.currentQuestionIndex];
+      const expiry = session.questionStartTime?.toDate().getTime() + (q.timeLimit * 1000);
+      
+      if (timerRef.current) clearInterval(timerRef.current);
+      
+      const updateTimer = () => {
+        const now = Date.now();
+        const diff = Math.max(0, Math.ceil((expiry - now) / 1000));
+        setTimeLeft(diff);
+        
+        if (diff === 0) {
+          setShowResults(true);
+          if (timerRef.current) clearInterval(timerRef.current);
+        } else {
+          setShowResults(false);
+        }
+      };
+
+      updateTimer();
+      timerRef.current = setInterval(updateTimer, 1000);
+    }
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [session?.currentQuestionIndex, session?.questionStartTime, quiz]);
+
+  const handleSelectOption = async (optionIndex: number) => {
+    if (!session || !quiz || showResults || myResponse) return;
+
+    const question = quiz.questions[session.currentQuestionIndex];
+    const isCorrect = optionIndex === question.correctOptionIndex;
+    const pointsPossible = question.points || 1000;
+    
+    // Calculate points based on time (faster = more points)
+    const timeTaken = quiz.questions[session.currentQuestionIndex].timeLimit - timeLeft;
+    const timeBonus = Math.max(0, Math.floor(pointsPossible * (1 - (timeTaken / question.timeLimit) * 0.5)));
+    const finalPoints = isCorrect ? timeBonus : 0;
+
+    try {
+      // Add response
+      await setDoc(doc(db, `sessions/${sessionId}/responses`, `${user?.uid}_${session.currentQuestionIndex}`), {
+        participantId: user?.uid,
+        questionIndex: session.currentQuestionIndex,
+        answerIndex: optionIndex,
+        isCorrect,
+        pointsEarned: finalPoints,
+        createdAt: serverTimestamp(),
+      });
+
+      // Update score in participant doc
+      if (finalPoints > 0) {
+        await updateDoc(doc(db, `sessions/${sessionId}/participants`, user?.uid || ""), {
+          score: increment(finalPoints),
+          lastAnswerCorrect: isCorrect
+        });
+      } else {
+        await updateDoc(doc(db, `sessions/${sessionId}/participants`, user?.uid || ""), {
+          lastAnswerCorrect: isCorrect
+        });
+      }
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `sessions/${sessionId}/responses`);
+    }
+  };
+
+  const handleNextQuestion = async () => {
+    if (!session || !quiz) return;
+    
+    const isLast = session.currentQuestionIndex === quiz.questions.length - 1;
+    
+    try {
+      if (isLast) {
+        await updateDoc(doc(db, "sessions", sessionId || ""), {
+          status: "finished"
+        });
+      } else {
+        await updateDoc(doc(db, "sessions", sessionId || ""), {
+          currentQuestionIndex: increment(1),
+          questionStartTime: serverTimestamp(),
+        });
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  if (loading || !session || !quiz) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-64px)]">
+        <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+      </div>
+    );
+  }
+
+  const isHost = session.hostId === user?.uid;
+  const currentQuestion = quiz.questions[session.currentQuestionIndex];
+  const answeredCount = responses.filter(r => r.questionIndex === session.currentQuestionIndex).length;
+
+  return (
+    <div className="min-h-[calc(100vh-64px)] bg-slate-50 flex flex-col">
+      {/* Header Info */}
+      <div className="bg-white border-b border-slate-200 py-4 px-4 sm:px-8 flex items-center justify-between sticky top-16 z-40 shadow-sm">
+        <div className="flex items-center gap-6">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Iteration</span>
+            <span className="text-lg font-black text-slate-900 tabular-nums">
+              {session.currentQuestionIndex + 1} <span className="text-slate-300 font-bold mx-1">/</span> {quiz.questions.length}
+            </span>
+          </div>
+          <div className="h-8 w-px bg-slate-100" />
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest leading-none mb-1">State</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-black text-slate-900 uppercase">
+                {showResults ? "Commit Stage" : "Reviewing Story"}
+              </span>
+              <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", showResults ? "bg-rose-500" : "bg-indigo-500")} />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-6">
+          <div className={cn(
+            "flex items-center gap-4 px-6 py-3 rounded-2xl border-2 font-mono transition-all",
+            timeLeft <= 5 
+              ? "bg-rose-50 border-rose-200 text-rose-600 animate-pulse scale-110 shadow-lg shadow-rose-100" 
+              : "bg-white border-slate-100 text-slate-900"
+          )}>
+            <Clock className={cn("w-5 h-5", timeLeft <= 5 ? "animate-spin" : "")} />
+            <span className="text-2xl font-black tabular-nums">{timeLeft}:00</span>
+          </div>
+          <div className="hidden lg:flex items-center gap-3 px-4 py-2 border border-slate-100 rounded-xl bg-slate-50">
+             <div className="flex -space-x-2">
+               {participants.slice(0, 3).map((p, i) => (
+                 <img key={i} src={p.photoURL} className="w-6 h-6 rounded-full border-2 border-white ring-1 ring-slate-100" />
+               ))}
+             </div>
+             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{answeredCount} Commits</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 flex flex-col items-center justify-center max-w-7xl mx-auto w-full px-4 py-12">
+        {!showResults ? (
+          <div className="w-full max-w-4xl space-y-12">
+            <motion.div
+              key={currentQuestion.id}
+              initial={{ scale: 0.98, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="text-center space-y-4"
+            >
+              <div className="inline-flex items-center gap-3 px-4 py-1.5 bg-indigo-50 text-indigo-700 rounded-full text-[10px] font-black uppercase tracking-widest border border-indigo-100 shadow-sm">
+                <Sparkles className="w-3 h-3" />
+                Featured User Story #{session.currentQuestionIndex + 1}
+              </div>
+              <h1 className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight leading-[1.1]">
+                {currentQuestion.text}
+              </h1>
+            </motion.div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-12">
+              {currentQuestion.options.map((option: string, idx: number) => (
+                <button
+                  key={idx}
+                  onClick={() => handleSelectOption(idx)}
+                  disabled={!!myResponse}
+                  className={cn(
+                    "relative group p-8 rounded-[2rem] text-left transition-all active:scale-[0.98] disabled:active:scale-100 min-h-[120px] flex items-center justify-between border-2",
+                    myResponse?.answerIndex === idx 
+                      ? "bg-slate-900 border-slate-900 text-white shadow-2xl shadow-indigo-200" 
+                      : "bg-white border-slate-100 hover:border-indigo-400/50 hover:shadow-xl hover:shadow-indigo-50 transition-all",
+                    !!myResponse && myResponse.answerIndex !== idx && "opacity-40"
+                  )}
+                >
+                  <div className="flex items-center gap-6 flex-1">
+                    <span className={cn(
+                      "w-12 h-12 flex items-center justify-center rounded-2xl font-black text-xl transition-colors",
+                      myResponse?.answerIndex === idx ? "bg-white/20 text-white" : "bg-slate-50 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600"
+                    )}>
+                      {String.fromCharCode(65 + idx)}
+                    </span>
+                    <span className="text-xl font-bold tracking-tight">{option}</span>
+                  </div>
+                  {myResponse?.answerIndex === idx && <div className="p-2 bg-white/20 rounded-xl"><Check className="w-6 h-6 text-white" /></div>}
+                </button>
+              ))}
+            </div>
+
+            {myResponse && (
+              <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="flex justify-center">
+                 <div className="inline-flex items-center gap-3 px-6 py-3 bg-white border border-indigo-100 rounded-2xl shadow-lg shadow-indigo-50">
+                    <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
+                    <span className="text-sm font-black text-indigo-600 uppercase tracking-widest animate-pulse">Commit Pending Review...</span>
+                 </div>
+              </motion.div>
+            )}
+          </div>
+        ) : (
+          <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            {/* Answer Result Display */}
+            <motion.div
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              className="lg:col-span-7 bg-white rounded-[3rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.08)] overflow-hidden flex flex-col border border-slate-100"
+            >
+              <div className={cn(
+                "p-12 pb-16 flex flex-col items-center justify-center text-center relative overflow-hidden",
+                myResponse?.isCorrect ? "bg-emerald-50/50" : "bg-rose-50/50"
+              )}>
+                {/* Background pulse for correct/incorrect */}
+                <div className={cn("absolute w-64 h-64 blur-[100px] rounded-full -top-32 -right-32 opacity-20", myResponse?.isCorrect ? "bg-emerald-500" : "bg-rose-500")} />
+                
+                {myResponse?.isCorrect ? (
+                  <>
+                    <div className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center mb-8 shadow-2xl shadow-emerald-200 border border-emerald-100 relative z-10">
+                      <Check className="w-14 h-14 text-emerald-600" />
+                    </div>
+                    <h2 className="text-5xl font-black text-slate-900 mb-2 tracking-tight leading-none">Sprint Success</h2>
+                    <p className="text-2xl font-black text-emerald-600 font-mono tracking-tighter">+{myResponse.pointsEarned} VELOCITY</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center mb-8 shadow-2xl shadow-rose-200 border border-rose-100 relative z-10">
+                      <X className="w-14 h-14 text-rose-600" />
+                    </div>
+                    <h2 className="text-5xl font-black text-slate-900 mb-2 tracking-tight leading-none">Build Failure</h2>
+                    <p className="text-xl font-bold text-rose-500/80 tracking-tight">Review technical documentation and retry.</p>
+                  </>
+                )}
+              </div>
+              
+              <div className="p-12 pt-10 flex-1 flex flex-col">
+                <div className="space-y-4">
+                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Correct Specification</h4>
+                   <div className="p-8 bg-slate-900 rounded-3xl border-2 border-slate-800 flex items-center gap-6 shadow-2xl">
+                     <div className="w-12 h-12 bg-white/10 text-white rounded-2xl flex items-center justify-center font-black text-xl">
+                        {String.fromCharCode(65 + currentQuestion.correctOptionIndex)}
+                     </div>
+                     <p className="text-2xl font-bold text-white tracking-tight leading-tight">{currentQuestion.options[currentQuestion.correctOptionIndex]}</p>
+                   </div>
+                </div>
+
+                {isHost && (
+                  <div className="mt-12">
+                    <button
+                      onClick={handleNextQuestion}
+                      className="w-full py-6 bg-indigo-600 text-white rounded-[2rem] font-black text-xl hover:bg-indigo-700 transition-all active:scale-[0.98] shadow-2xl shadow-indigo-200 flex items-center justify-center gap-4 group"
+                    >
+                      {session.currentQuestionIndex === quiz.questions.length - 1 ? "FINALIZE SPRINT" : "NEXT STORY"}
+                      <ArrowRight className="w-6 h-6 group-hover:translate-x-2 transition-transform" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+
+            {/* Leaderboard Sidebar */}
+            <motion.div
+              initial={{ x: 20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              className="lg:col-span-5 bg-white rounded-[3rem] p-4 border border-slate-200 shadow-sm flex flex-col h-full"
+            >
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                <h3 className="text-xl font-black text-slate-900 flex items-center gap-3">
+                  <Award className="w-6 h-6 text-indigo-600" />
+                  Live Rankings
+                </h3>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Real-time</span>
+                </div>
+              </div>
+
+              <div className="p-2 space-y-2 overflow-y-auto max-h-[500px] scrollbar-hide">
+                {participants.map((player, idx) => (
+                  <motion.div
+                    key={player.id}
+                    layout
+                    className={cn(
+                      "flex items-center gap-4 p-4 rounded-3xl transition-all border",
+                      idx === 0 
+                        ? "bg-slate-900 border-slate-900 text-white shadow-xl shadow-slate-200" 
+                        : (player.uid === user?.uid ? "bg-indigo-50 border-indigo-100" : "bg-slate-50 border-transparent hover:border-slate-200")
+                    )}
+                  >
+                    <div className={cn(
+                      "w-8 h-8 rounded-xl font-black text-xs flex items-center justify-center shrink-0",
+                      idx === 0 ? "bg-white/20" : "bg-white text-slate-400"
+                    )}>
+                      {idx + 1}
+                    </div>
+                    <img 
+                      src={player.photoURL || `https://ui-avatars.com/api/?name=${player.displayName}`} 
+                      className="w-10 h-10 rounded-xl border-2 border-white ring-1 ring-slate-100"
+                      alt={player.displayName}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className={cn("text-sm font-bold truncate", idx === 0 ? "text-white" : "text-slate-900")}>
+                        {player.displayName}
+                      </p>
+                      {player.uid === user?.uid && (
+                        <span className="text-[9px] font-black uppercase tracking-widest text-indigo-500">You</span>
+                      )}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className={cn("text-lg font-black font-mono leading-none", idx === 0 ? "text-white" : "text-slate-900")}>
+                        {player.score.toLocaleString()}
+                      </p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

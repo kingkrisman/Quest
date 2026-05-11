@@ -1,0 +1,116 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Validation helpers
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'displayName', 'email']) &&
+             data.keys().size() >= 3 &&
+             data.uid == request.auth.uid &&
+             data.displayName is string && data.displayName.size() <= 100 &&
+             data.email is string && data.email.size() <= 200 &&
+             isValidId(data.uid);
+    }
+
+    function isValidQuiz(data) {
+      return data.keys().hasAll(['title', 'creatorId', 'questions', 'createdAt', 'updatedAt']) &&
+             data.title is string && data.title.size() <= 200 &&
+             data.creatorId == request.auth.uid &&
+             data.questions is list && data.questions.size() <= 100 &&
+             isValidId(data.creatorId);
+    }
+
+    function isValidSession(data) {
+      return data.keys().hasAll(['quizId', 'hostId', 'pin', 'status', 'createdAt']) &&
+             data.hostId == request.auth.uid &&
+             data.status in ['lobby', 'in-progress', 'finished'] &&
+             data.pin is string && data.pin.size() == 6 &&
+             isValidId(data.hostId) && isValidId(data.quizId);
+    }
+
+    function isValidParticipant(data) {
+      return data.keys().hasAll(['uid', 'displayName', 'score', 'joinedAt']) &&
+             data.uid == request.auth.uid &&
+             data.score is int &&
+             data.displayName is string && data.displayName.size() <= 50 &&
+             isValidId(data.uid);
+    }
+
+    function isValidResponse(data) {
+      return data.keys().hasAll(['participantId', 'questionIndex', 'answerIndex', 'isCorrect', 'createdAt']) &&
+             data.participantId == request.auth.uid &&
+             data.questionIndex is int &&
+             data.answerIndex is int &&
+             isValidId(data.participantId);
+    }
+
+    function isValidFlashcardSet(data) {
+      return data.keys().hasAll(['title', 'creatorId', 'cards', 'createdAt', 'updatedAt']) &&
+             data.title is string && data.title.size() <= 200 &&
+             data.creatorId == request.auth.uid &&
+             data.cards is list && data.cards.size() <= 200 &&
+             isValidId(data.creatorId);
+    }
+
+    // Collection rules
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) &&
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'photoURL']);
+    }
+
+    match /quizzes/{quizId} {
+      allow read: if true; 
+      allow create: if isSignedIn() && isValidQuiz(request.resource.data);
+      allow update: if isOwner(resource.data.creatorId) && isValidQuiz(request.resource.data);
+      allow delete: if isOwner(resource.data.creatorId);
+    }
+
+    match /flashcard_sets/{setId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidFlashcardSet(request.resource.data);
+      allow update: if isOwner(resource.data.creatorId) && isValidFlashcardSet(request.resource.data);
+      allow delete: if isOwner(resource.data.creatorId);
+    }
+
+    match /sessions/{sessionId} {
+      allow read: if true; 
+      allow create: if isSignedIn() && isValidSession(request.resource.data);
+      allow update: if isOwner(resource.data.hostId);
+      allow delete: if isOwner(resource.data.hostId);
+
+      match /participants/{participantId} {
+        allow read: if true;
+        allow create: if isOwner(participantId) && isValidParticipant(request.resource.data) &&
+                        get(/databases/$(database)/documents/sessions/$(sessionId)).data.status == 'lobby';
+        allow update: if (isOwner(participantId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['score', 'lastAnswerCorrect', 'photoURL', 'displayName'])) ||
+                        (isSignedIn() && isOwner(get(/databases/$(database)/documents/sessions/$(sessionId)).data.hostId));
+      }
+
+      match /responses/{responseId} {
+        allow read: if isSignedIn() && (request.auth.uid == get(/databases/$(database)/documents/sessions/$(sessionId)).data.hostId ||
+                       resource.data.participantId == request.auth.uid);
+        allow create: if isSignedIn() && isValidResponse(request.resource.data) &&
+                        request.resource.data.participantId == request.auth.uid;
+      }
+    }
+  }
+}

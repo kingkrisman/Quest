@@ -1,0 +1,135 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Information about a user in the system.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "email"]
+    },
+    "Quiz": {
+      "title": "Quiz",
+      "description": "A quiz template with questions.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "creatorId": { "type": "string" },
+        "creatorName": { "type": "string" },
+        "questions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "text": { "type": "string" },
+              "options": { "type": "array", "items": { "type": "string" } },
+              "correctOptionIndex": { "type": "integer" },
+              "points": { "type": "integer" },
+              "timeLimit": { "type": "integer" }
+            }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Session": {
+      "title": "Session",
+      "description": "An active quiz game session.",
+      "type": "object",
+      "properties": {
+        "quizId": { "type": "string" },
+        "hostId": { "type": "string" },
+        "pin": { "type": "string" },
+        "status": { "type": "string", "enum": ["lobby", "in-progress", "finished"] },
+        "currentQuestionIndex": { "type": "integer" },
+        "questionStartTime": { "type": "string", "format": "date-time" },
+        "questionEndTime": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Participant": {
+      "title": "Participant",
+      "description": "A player in a quiz session.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "score": { "type": "integer" },
+        "lastAnswerCorrect": { "type": "boolean" },
+        "joinedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Response": {
+      "title": "Response",
+      "description": "A player's answer to a specific question.",
+      "type": "object",
+      "properties": {
+        "participantId": { "type": "string" },
+        "questionIndex": { "type": "integer" },
+        "answerIndex": { "type": "integer" },
+        "isCorrect": { "type": "boolean" },
+        "pointsEarned": { "type": "integer" },
+        "responseTime": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "FlashcardSet": {
+      "title": "FlashcardSet",
+      "description": "A set of flashcards for study.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "creatorId": { "type": "string" },
+        "creatorName": { "type": "string" },
+        "cards": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "front": { "type": "string" },
+              "back": { "type": "string" }
+            }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profiles."
+    },
+    "quizzes/{quizId}": {
+      "schema": "Quiz",
+      "description": "Quiz templates."
+    },
+    "flashcard_sets/{setId}": {
+      "schema": "FlashcardSet",
+      "description": "Flashcard sets for self-study."
+    },
+    "sessions/{sessionId}": {
+      "schema": "Session",
+      "description": "Active quiz sessions."
+    },
+    "sessions/{sessionId}/participants/{participantId}": {
+      "schema": "Participant",
+      "description": "Players in a session."
+    },
+    "sessions/{sessionId}/responses/{responseId}": {
+      "schema": "Response",
+      "description": "Individual answers submitted by players."
+    }
+  }
+}

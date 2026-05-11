@@ -1,0 +1,6 @@
+{
+  "name": "QuizPulse",
+  "description": "A real-time, AI-powered full-stack quiz platform with live leaderboards and authentication.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
