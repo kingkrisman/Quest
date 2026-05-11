@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { signInWithPopup, auth, googleProvider, signOut } from "../lib/firebase";
+import { supabase } from "../lib/supabase";
 import { LogIn, LogOut, LayoutDashboard, Database, Zap } from "lucide-react";
 import { motion } from "motion/react";
 
@@ -9,21 +9,21 @@ export function Navbar() {
 
   const handleLogin = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
+      if (error) throw error;
     } catch (error) {
-      if (error instanceof Error) {
-        if (error.message.includes('unauthorized-domain')) {
-          console.error("Firebase domain not authorized. Current domain:", window.location.hostname);
-          console.error("Add this domain to Firebase Console > Authentication > Settings > Authorized domains");
-        }
-        console.error("Login failed:", error.message);
-      }
+      console.error("Login failed:", error);
     }
   };
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
+      await supabase.auth.signOut();
     } catch (error) {
       console.error("Logout failed", error);
     }

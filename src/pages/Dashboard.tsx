@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { Plus, Play, Clock, BookOpen, ChevronRight, LayoutGrid, List, Zap } from "lucide-react";
 import { motion } from "motion/react";
@@ -20,16 +19,13 @@ export function Dashboard() {
 
     const fetchData = async () => {
       try {
-        const qQuiz = query(collection(db, "quizzes"), where("creatorId", "==", user.uid));
-        const qFlash = query(collection(db, "flashcard_sets"), where("creatorId", "==", user.uid));
-        
-        const [quizSnapshot, flashSnapshot] = await Promise.all([
-            getDocs(qQuiz),
-            getDocs(qFlash)
+        const [quizData, flashData] = await Promise.all([
+          supabase.from('quizzes').select('*').eq('creator_id', user.id),
+          supabase.from('flashcard_sets').select('*').eq('creator_id', user.id),
         ]);
 
-        setQuizzes(quizSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        setFlashcardSets(flashSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        setQuizzes(quizData.data || []);
+        setFlashcardSets(flashData.data || []);
       } catch (err) {
         console.error(err);
       } finally {
@@ -42,18 +38,23 @@ export function Dashboard() {
 
   const handleHost = async (quizId: string) => {
     if (!user) return;
-    
+
     setLoading(true);
     try {
-      const sessionRef = await addDoc(collection(db, "sessions"), {
-        quizId,
-        hostId: user.uid,
-        pin: generatePin(),
-        status: "lobby",
-        currentQuestionIndex: -1,
-        createdAt: serverTimestamp(),
-      });
-      navigate(`/lobby/${sessionRef.id}`);
+      const { data, error } = await supabase
+        .from('sessions')
+        .insert({
+          quiz_id: quizId,
+          host_id: user.id,
+          pin: generatePin(),
+          status: "lobby",
+          current_question_index: -1,
+        })
+        .select('id')
+        .single();
+
+      if (error) throw error;
+      navigate(`/lobby/${data.id}`);
     } catch (err) {
       console.error(err);
       setLoading(false);

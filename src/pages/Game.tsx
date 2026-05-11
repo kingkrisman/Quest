@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { doc, onSnapshot, collection, setDoc, updateDoc, serverTimestamp, getDoc, increment, query, where } from "firebase/firestore";
-import { db, auth, handleFirestoreError, OperationType } from "../lib/firebase";
+import { supabase, handleSupabaseError, OperationType } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { Trophy, Clock, Users, ArrowRight, Check, X, Loader2, Award, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -26,37 +25,57 @@ export function Game() {
   useEffect(() => {
     if (!sessionId || !user) return;
 
-    const unsubSession = onSnapshot(doc(db, "sessions", sessionId), async (sessionDoc) => {
-      if (!sessionDoc.exists()) {
+    const sessionChannel = supabase
+      .channel(`session:${sessionId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions', filter: `id=eq.${sessionId}` }, async (payload) => {
+        const data = payload.new;
+        setSession(data);
+
+        if (data.status === "finished") {
+          navigate(`/results/${sessionId}`);
+          return;
+        }
+
+        if (!quiz || quiz.id !== data.quiz_id) {
+          const { data: quizData } = await supabase.from('quizzes').select('*').eq('id', data.quiz_id).single();
+          if (quizData) {
+            setQuiz(quizData);
+          }
+        }
+
+        setLoading(false);
+      })
+      .subscribe();
+
+    const participantsChannel = supabase
+      .channel(`participants:${sessionId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'participants', filter: `session_id=eq.${sessionId}` }, async (payload) => {
+        const { data: ps } = await supabase.from('participants').select('*').eq('session_id', sessionId).order('score', { ascending: false });
+        setParticipants(ps || []);
+      })
+      .subscribe();
+
+    // Initial load
+    supabase.from('sessions').select('*').eq('id', sessionId).single().then(async ({ data, error }) => {
+      if (error) {
         navigate("/");
         return;
       }
-      const data = sessionDoc.data();
-      setSession({ id: sessionDoc.id, ...data });
-
-      if (data.status === "finished") {
-        navigate(`/results/${sessionId}`);
-        return;
+      setSession(data);
+      const { data: quizData } = await supabase.from('quizzes').select('*').eq('id', data.quiz_id).single();
+      if (quizData) {
+        setQuiz(quizData);
       }
-
-      // Fetch quiz if not already fetched
-      if (!quiz || quiz.id !== data.quizId) {
-        const quizDoc = await getDoc(doc(db, "quizzes", data.quizId));
-        if (quizDoc.exists()) {
-          setQuiz({ id: quizDoc.id, ...quizDoc.data() });
-        }
-      }
-
       setLoading(false);
     });
 
-    const unsubParticipants = onSnapshot(collection(db, `sessions/${sessionId}/participants`), (snapshot) => {
-      setParticipants(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)).sort((a: any, b: any) => b.score - a.score));
+    supabase.from('participants').select('*').eq('session_id', sessionId).order('score', { ascending: false }).then(({ data }) => {
+      setParticipants(data || []);
     });
 
     return () => {
-      unsubSession();
-      unsubParticipants();
+      supabase.removeChannel(sessionChannel);
+      supabase.removeChannel(participantsChannel);
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [sessionId, user, navigate]);
@@ -64,30 +83,34 @@ export function Game() {
   useEffect(() => {
     if (!sessionId || !user || !session) return;
 
-    const responsesQuery = session.hostId === user.uid
-      ? collection(db, `sessions/${sessionId}/responses`)
-      : query(collection(db, `sessions/${sessionId}/responses`), where("participantId", "==", user.uid));
+    const responsesChannel = supabase
+      .channel(`responses:${sessionId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'responses', filter: `session_id=eq.${sessionId}` }, async (payload) => {
+        const { data: allResponses } = await supabase.from('responses').select('*').eq('session_id', sessionId);
+        setResponses(allResponses || []);
+        
+        const myRes = allResponses?.find((r: any) => r.participant_id === user.id && r.question_index === session.current_question_index);
+        setMyResponse(myRes || null);
+      })
+      .subscribe();
 
-    const unsubResponses = onSnapshot(responsesQuery, (snapshot) => {
-      const allResponses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
-      setResponses(allResponses);
-
-      const myRes = allResponses.find((r: any) => r.participantId === user.uid && r.questionIndex === session.currentQuestionIndex);
+    // Initial load
+    supabase.from('responses').select('*').eq('session_id', sessionId).then(({ data }) => {
+      setResponses(data || []);
+      const myRes = data?.find((r: any) => r.participant_id === user.id && r.question_index === session.current_question_index);
       setMyResponse(myRes || null);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, `sessions/${sessionId}/responses`);
     });
 
     return () => {
-      unsubResponses();
+      supabase.removeChannel(responsesChannel);
     };
-  }, [sessionId, user, session?.hostId, session?.currentQuestionIndex]);
+  }, [sessionId, user, session?.host_id, session?.current_question_index]);
 
-  // Timer logic
   useEffect(() => {
-    if (session?.status === "in-progress" && quiz && session.currentQuestionIndex >= 0) {
-      const q = quiz.questions[session.currentQuestionIndex];
-      const expiry = session.questionStartTime?.toDate().getTime() + (q.timeLimit * 1000);
+    if (session?.status === "in-progress" && quiz && session.current_question_index >= 0) {
+      const q = quiz.questions[session.current_question_index];
+      const startTime = new Date(session.question_start_time).getTime();
+      const expiry = startTime + (q.timeLimit * 1000);
       
       if (timerRef.current) clearInterval(timerRef.current);
       
@@ -111,62 +134,63 @@ export function Game() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [session?.currentQuestionIndex, session?.questionStartTime, quiz]);
+  }, [session?.current_question_index, session?.question_start_time, quiz]);
 
   const handleSelectOption = async (optionIndex: number) => {
     if (!session || !quiz || showResults || myResponse) return;
 
-    const question = quiz.questions[session.currentQuestionIndex];
+    const question = quiz.questions[session.current_question_index];
     const isCorrect = optionIndex === question.correctOptionIndex;
     const pointsPossible = question.points || 1000;
     
-    // Calculate points based on time (faster = more points)
-    const timeTaken = quiz.questions[session.currentQuestionIndex].timeLimit - timeLeft;
+    const timeTaken = quiz.questions[session.current_question_index].timeLimit - timeLeft;
     const timeBonus = Math.max(0, Math.floor(pointsPossible * (1 - (timeTaken / question.timeLimit) * 0.5)));
     const finalPoints = isCorrect ? timeBonus : 0;
 
     try {
-      // Add response
-      await setDoc(doc(db, `sessions/${sessionId}/responses`, `${user?.uid}_${session.currentQuestionIndex}`), {
-        participantId: user?.uid,
-        questionIndex: session.currentQuestionIndex,
-        answerIndex: optionIndex,
-        isCorrect,
-        pointsEarned: finalPoints,
-        createdAt: serverTimestamp(),
+      const { error: responseError } = await supabase.from('responses').insert({
+        session_id: sessionId,
+        participant_id: user?.id,
+        question_index: session.current_question_index,
+        answer_index: optionIndex,
+        is_correct: isCorrect,
+        points_earned: finalPoints,
       });
+      if (responseError) throw responseError;
 
-      // Update score in participant doc
       if (finalPoints > 0) {
-        await updateDoc(doc(db, `sessions/${sessionId}/participants`, user?.uid || ""), {
-          score: increment(finalPoints),
-          lastAnswerCorrect: isCorrect
-        });
+        const { data: current } = await supabase.from('participants').select('score').eq('user_id', user?.id).eq('session_id', sessionId).single();
+        await supabase.from('participants').update({
+          score: (current?.score || 0) + finalPoints,
+          last_answer_correct: isCorrect
+        }).eq('user_id', user?.id).eq('session_id', sessionId);
       } else {
-        await updateDoc(doc(db, `sessions/${sessionId}/participants`, user?.uid || ""), {
-          lastAnswerCorrect: isCorrect
-        });
+        await supabase.from('participants').update({
+          last_answer_correct: isCorrect
+        }).eq('user_id', user?.id).eq('session_id', sessionId);
       }
     } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `sessions/${sessionId}/responses`);
+      handleSupabaseError(err, OperationType.WRITE, `responses`);
     }
   };
 
   const handleNextQuestion = async () => {
     if (!session || !quiz) return;
     
-    const isLast = session.currentQuestionIndex === quiz.questions.length - 1;
+    const isLast = session.current_question_index === quiz.questions.length - 1;
     
     try {
       if (isLast) {
-        await updateDoc(doc(db, "sessions", sessionId || ""), {
+        const { error } = await supabase.from('sessions').update({
           status: "finished"
-        });
+        }).eq('id', sessionId);
+        if (error) throw error;
       } else {
-        await updateDoc(doc(db, "sessions", sessionId || ""), {
-          currentQuestionIndex: increment(1),
-          questionStartTime: serverTimestamp(),
-        });
+        const { error } = await supabase.from('sessions').update({
+          current_question_index: session.current_question_index + 1,
+          question_start_time: new Date().toISOString(),
+        }).eq('id', sessionId);
+        if (error) throw error;
       }
     } catch (err) {
       console.error(err);
@@ -181,9 +205,9 @@ export function Game() {
     );
   }
 
-  const isHost = session.hostId === user?.uid;
-  const currentQuestion = quiz.questions[session.currentQuestionIndex];
-  const answeredCount = responses.filter(r => r.questionIndex === session.currentQuestionIndex).length;
+  const isHost = session.host_id === user?.id;
+  const currentQuestion = quiz.questions[session.current_question_index];
+  const answeredCount = responses.filter(r => r.question_index === session.current_question_index).length;
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-slate-50 flex flex-col">
@@ -193,7 +217,7 @@ export function Game() {
           <div className="flex flex-col">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Iteration</span>
             <span className="text-lg font-black text-slate-900 tabular-nums">
-              {session.currentQuestionIndex + 1} <span className="text-slate-300 font-bold mx-1">/</span> {quiz.questions.length}
+              {session.current_question_index + 1} <span className="text-slate-300 font-bold mx-1">/</span> {quiz.questions.length}
             </span>
           </div>
           <div className="h-8 w-px bg-slate-100" />
@@ -221,7 +245,7 @@ export function Game() {
           <div className="hidden lg:flex items-center gap-3 px-4 py-2 border border-slate-100 rounded-xl bg-slate-50">
              <div className="flex -space-x-2">
                {participants.slice(0, 3).map((p, i) => (
-                 <img key={i} src={p.photoURL} className="w-6 h-6 rounded-full border-2 border-white ring-1 ring-slate-100" />
+                 <img key={i} src={p.photo_url} className="w-6 h-6 rounded-full border-2 border-white ring-1 ring-slate-100" />
                ))}
              </div>
              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{answeredCount} Commits</span>
@@ -240,7 +264,7 @@ export function Game() {
             >
               <div className="inline-flex items-center gap-3 px-4 py-1.5 bg-indigo-50 text-indigo-700 rounded-full text-[10px] font-black uppercase tracking-widest border border-indigo-100 shadow-sm">
                 <Sparkles className="w-3 h-3" />
-                Featured User Story #{session.currentQuestionIndex + 1}
+                Featured User Story #{session.current_question_index + 1}
               </div>
               <h1 className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight leading-[1.1]">
                 {currentQuestion.text}
@@ -255,22 +279,22 @@ export function Game() {
                   disabled={!!myResponse}
                   className={cn(
                     "relative group p-8 rounded-[2rem] text-left transition-all active:scale-[0.98] disabled:active:scale-100 min-h-[120px] flex items-center justify-between border-2",
-                    myResponse?.answerIndex === idx 
+                    myResponse?.answer_index === idx 
                       ? "bg-slate-900 border-slate-900 text-white shadow-2xl shadow-indigo-200" 
                       : "bg-white border-slate-100 hover:border-indigo-400/50 hover:shadow-xl hover:shadow-indigo-50 transition-all",
-                    !!myResponse && myResponse.answerIndex !== idx && "opacity-40"
+                    !!myResponse && myResponse.answer_index !== idx && "opacity-40"
                   )}
                 >
                   <div className="flex items-center gap-6 flex-1">
                     <span className={cn(
                       "w-12 h-12 flex items-center justify-center rounded-2xl font-black text-xl transition-colors",
-                      myResponse?.answerIndex === idx ? "bg-white/20 text-white" : "bg-slate-50 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600"
+                      myResponse?.answer_index === idx ? "bg-white/20 text-white" : "bg-slate-50 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600"
                     )}>
                       {String.fromCharCode(65 + idx)}
                     </span>
                     <span className="text-xl font-bold tracking-tight">{option}</span>
                   </div>
-                  {myResponse?.answerIndex === idx && <div className="p-2 bg-white/20 rounded-xl"><Check className="w-6 h-6 text-white" /></div>}
+                  {myResponse?.answer_index === idx && <div className="p-2 bg-white/20 rounded-xl"><Check className="w-6 h-6 text-white" /></div>}
                 </button>
               ))}
             </div>
@@ -294,18 +318,18 @@ export function Game() {
             >
               <div className={cn(
                 "p-12 pb-16 flex flex-col items-center justify-center text-center relative overflow-hidden",
-                myResponse?.isCorrect ? "bg-emerald-50/50" : "bg-rose-50/50"
+                myResponse?.is_correct ? "bg-emerald-50/50" : "bg-rose-50/50"
               )}>
                 {/* Background pulse for correct/incorrect */}
-                <div className={cn("absolute w-64 h-64 blur-[100px] rounded-full -top-32 -right-32 opacity-20", myResponse?.isCorrect ? "bg-emerald-500" : "bg-rose-500")} />
+                <div className={cn("absolute w-64 h-64 blur-[100px] rounded-full -top-32 -right-32 opacity-20", myResponse?.is_correct ? "bg-emerald-500" : "bg-rose-500")} />
                 
-                {myResponse?.isCorrect ? (
+                {myResponse?.is_correct ? (
                   <>
                     <div className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center mb-8 shadow-2xl shadow-emerald-200 border border-emerald-100 relative z-10">
                       <Check className="w-14 h-14 text-emerald-600" />
                     </div>
                     <h2 className="text-5xl font-black text-slate-900 mb-2 tracking-tight leading-none">Sprint Success</h2>
-                    <p className="text-2xl font-black text-emerald-600 font-mono tracking-tighter">+{myResponse.pointsEarned} VELOCITY</p>
+                    <p className="text-2xl font-black text-emerald-600 font-mono tracking-tighter">+{myResponse.points_earned} VELOCITY</p>
                   </>
                 ) : (
                   <>
@@ -335,7 +359,7 @@ export function Game() {
                       onClick={handleNextQuestion}
                       className="w-full py-6 bg-indigo-600 text-white rounded-[2rem] font-black text-xl hover:bg-indigo-700 transition-all active:scale-[0.98] shadow-2xl shadow-indigo-200 flex items-center justify-center gap-4 group"
                     >
-                      {session.currentQuestionIndex === quiz.questions.length - 1 ? "FINALIZE SPRINT" : "NEXT STORY"}
+                      {session.current_question_index === quiz.questions.length - 1 ? "FINALIZE SPRINT" : "NEXT STORY"}
                       <ArrowRight className="w-6 h-6 group-hover:translate-x-2 transition-transform" />
                     </button>
                   </div>
@@ -369,7 +393,7 @@ export function Game() {
                       "flex items-center gap-4 p-4 rounded-3xl transition-all border",
                       idx === 0 
                         ? "bg-slate-900 border-slate-900 text-white shadow-xl shadow-slate-200" 
-                        : (player.uid === user?.uid ? "bg-indigo-50 border-indigo-100" : "bg-slate-50 border-transparent hover:border-slate-200")
+                        : (player.user_id === user?.id ? "bg-indigo-50 border-indigo-100" : "bg-slate-50 border-transparent hover:border-slate-200")
                     )}
                   >
                     <div className={cn(
@@ -379,15 +403,15 @@ export function Game() {
                       {idx + 1}
                     </div>
                     <img 
-                      src={player.photoURL || `https://ui-avatars.com/api/?name=${player.displayName}`} 
+                      src={player.photo_url || `https://ui-avatars.com/api/?name=${player.display_name}`} 
                       className="w-10 h-10 rounded-xl border-2 border-white ring-1 ring-slate-100"
-                      alt={player.displayName}
+                      alt={player.display_name}
                     />
                     <div className="flex-1 min-w-0">
                       <p className={cn("text-sm font-bold truncate", idx === 0 ? "text-white" : "text-slate-900")}>
-                        {player.displayName}
+                        {player.display_name}
                       </p>
-                      {player.uid === user?.uid && (
+                      {player.user_id === user?.id && (
                         <span className="text-[9px] font-black uppercase tracking-widest text-indigo-500">You</span>
                       )}
                     </div>

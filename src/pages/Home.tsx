@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { collection, query, where, getDocs } from "firebase/firestore";
-import { db, handleFirestoreError, OperationType } from "../lib/firebase";
+import { supabase, handleSupabaseError, OperationType } from "../lib/supabase";
 import { Search, PlusCircle, Play, Globe, Trophy, Users, ArrowRight } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "../lib/utils";
@@ -15,24 +14,27 @@ export function Home() {
   const handleJoin = async (e: any) => {
     e.preventDefault();
     if (pin.length !== 6) return;
-    
+
     setLoading(true);
     setError("");
-    
+
     try {
-      const q = query(collection(db, "sessions"), where("pin", "==", pin), where("status", "==", "lobby"));
-      const snapshot = await getDocs(q);
-      
-      if (snapshot.empty) {
+      const { data, error: err } = await supabase
+        .from('sessions')
+        .select('id')
+        .eq('pin', pin)
+        .eq('status', 'lobby')
+        .single();
+
+      if (err || !data) {
         setError("Quiz not found or already started.");
         setLoading(false);
         return;
       }
-      
-      const sessionId = snapshot.docs[0].id;
-      navigate(`/lobby/${sessionId}`);
+
+      navigate(`/lobby/${data.id}`);
     } catch (err) {
-      handleFirestoreError(err, OperationType.LIST, "sessions/query");
+      handleSupabaseError(err, OperationType.LIST, "sessions");
     }
   };
 

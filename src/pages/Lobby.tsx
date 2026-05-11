@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { doc, onSnapshot, collection, setDoc, updateDoc, serverTimestamp, query } from "firebase/firestore";
-import { db, auth, handleFirestoreError, OperationType } from "../lib/firebase";
+import { supabase, handleSupabaseError, OperationType } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { Users, Play, Copy, Check, LogOut, ArrowRight, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -20,54 +19,65 @@ export function Lobby() {
   useEffect(() => {
     if (!sessionId || !user) return;
 
-    // Join the session if not already joined
     const joinSession = async () => {
-      if (!user) return;
       try {
-        const participantRef = doc(db, `sessions/${sessionId}/participants`, user.uid);
-        await setDoc(participantRef, {
-          uid: user.uid,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
+        await supabase.from('participants').upsert({
+          session_id: sessionId,
+          user_id: user.id,
+          display_name: user.displayName,
+          photo_url: user.photoURL,
           score: 0,
-          lastAnswerCorrect: false,
-          joinedAt: serverTimestamp()
-        }, { merge: true });
+          last_answer_correct: false,
+        });
       } catch (err) {
-        handleFirestoreError(err, OperationType.WRITE, `sessions/${sessionId}/participants`);
+        handleSupabaseError(err, OperationType.WRITE, `participants`);
       }
     };
 
-    const unsubSession = onSnapshot(doc(db, "sessions", sessionId), (doc) => {
-      if (doc.exists()) {
-        const data = doc.data();
-        setSession({ id: doc.id, ...data });
+    const sessionChannel = supabase
+      .channel(`session:${sessionId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions', filter: `id=eq.${sessionId}` }, (payload) => {
+        const data = payload.new;
+        setSession({ id: data.id, ...data });
         if (data.status === "in-progress") {
           navigate(`/game/${sessionId}`);
         }
-      } else {
+        setLoading(false);
+      })
+      .subscribe();
+
+    const participantsChannel = supabase
+      .channel(`participants:${sessionId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'participants', filter: `session_id=eq.${sessionId}` }, async (payload) => {
+        const { data: ps } = await supabase.from('participants').select('*').eq('session_id', sessionId);
+        setParticipants(ps || []);
+
+        if (user && ps && !ps.find((p: any) => p.user_id === user.id)) {
+          joinSession();
+        }
+      })
+      .subscribe();
+
+    // Initial load
+    supabase.from('sessions').select('*').eq('id', sessionId).single().then(({ data, error }) => {
+      if (error) {
         navigate("/");
+        return;
       }
+      setSession(data);
       setLoading(false);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, `sessions/${sessionId}`);
     });
 
-    const unsubParticipants = onSnapshot(collection(db, `sessions/${sessionId}/participants`), (snapshot) => {
-      const ps = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setParticipants(ps);
-      
-      // Auto-join if not in the list and joining isn't already handled
-      if (user && !ps.find((p: any) => p.id === user.uid)) {
+    supabase.from('participants').select('*').eq('session_id', sessionId).then(({ data }) => {
+      setParticipants(data || []);
+      if (user && data && !data.find((p: any) => p.user_id === user.id)) {
         joinSession();
       }
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, `sessions/${sessionId}/participants`);
     });
 
     return () => {
-      unsubSession();
-      unsubParticipants();
+      supabase.removeChannel(sessionChannel);
+      supabase.removeChannel(participantsChannel);
     };
   }, [sessionId, user, navigate]);
 
@@ -75,13 +85,14 @@ export function Lobby() {
     if (!sessionId || !session) return;
     setStarting(true);
     try {
-      await updateDoc(doc(db, "sessions", sessionId), {
+      const { error } = await supabase.from('sessions').update({
         status: "in-progress",
-        currentQuestionIndex: 0,
-        questionStartTime: serverTimestamp(),
-      });
+        current_question_index: 0,
+        question_start_time: new Date().toISOString(),
+      }).eq('id', sessionId);
+      if (error) throw error;
     } catch (err) {
-      handleFirestoreError(err, OperationType.UPDATE, `sessions/${sessionId}`);
+      handleSupabaseError(err, OperationType.UPDATE, `sessions`);
       setStarting(false);
     }
   };

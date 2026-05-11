@@ -1,10 +1,15 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { onAuthStateChanged, User } from "firebase/auth";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
-import { auth, db } from "../lib/firebase";
+import { supabase } from "../lib/supabase";
+
+interface AuthUser {
+  id: string;
+  email: string;
+  displayName: string;
+  photoURL: string | null;
+}
 
 interface AuthContextType {
-  user: User | null;
+  user: AuthUser | null;
   loading: boolean;
   isAdmin: boolean;
 }
@@ -14,32 +19,40 @@ const AuthContext = createContext<AuthContextType>({ user: null, loading: true, 
 export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      if (user) {
-        // Sync user profile to Firestore
-        const userRef = doc(db, "users", user.uid);
-        const userDoc = await getDoc(userRef);
-        
-        if (!userDoc.exists()) {
-          await setDoc(userRef, {
-            uid: user.uid,
-            displayName: user.displayName || "Anonymous Player",
-            email: user.email,
-            photoURL: user.photoURL,
-            createdAt: serverTimestamp(),
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        const authUser: AuthUser = {
+          id: session.user.id,
+          email: session.user.email || '',
+          displayName: session.user.user_metadata?.full_name || "Anonymous Player",
+          photoURL: session.user.user_metadata?.avatar_url || null,
+        };
+        setUser(authUser);
+
+        const { data: existing } = await supabase
+          .from('users')
+          .select('*')
+          .eq('uid', session.user.id)
+          .single();
+
+        if (!existing) {
+          await supabase.from('users').insert({
+            uid: session.user.id,
+            display_name: authUser.displayName,
+            email: authUser.email,
+            photo_url: authUser.photoURL,
           });
         }
+      } else {
+        setUser(null);
       }
       setLoading(false);
     });
-
-    return () => unsubscribe();
   }, []);
 
   return (

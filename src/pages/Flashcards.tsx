@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { supabase } from "../lib/supabase";
 import { ArrowLeft, ChevronLeft, ChevronRight, RotateCcw, LayoutGrid, Info } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "../lib/utils";
@@ -18,10 +17,10 @@ export function Flashcards() {
     const fetchSet = async () => {
       if (!setId) return;
       try {
-        const docRef = doc(db, "flashcard_sets", setId);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setFlashcardSet({ id: docSnap.id, ...docSnap.data() });
+        const { data, error } = await supabase.from('flashcard_sets').select('*').eq('id', setId).single();
+        if (error) throw error;
+        if (data) {
+          setFlashcardSet(data);
         }
       } catch (err) {
         console.error(err);
