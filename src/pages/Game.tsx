@@ -54,29 +54,34 @@ export function Game() {
       setParticipants(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)).sort((a: any, b: any) => b.score - a.score));
     });
 
-    const responsesQuery = session?.hostId === user.uid 
-      ? collection(db, `sessions/${sessionId}/responses`) 
+    return () => {
+      unsubSession();
+      unsubParticipants();
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [sessionId, user, navigate]);
+
+  useEffect(() => {
+    if (!sessionId || !user || !session) return;
+
+    const responsesQuery = session.hostId === user.uid
+      ? collection(db, `sessions/${sessionId}/responses`)
       : query(collection(db, `sessions/${sessionId}/responses`), where("participantId", "==", user.uid));
 
     const unsubResponses = onSnapshot(responsesQuery, (snapshot) => {
       const allResponses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
       setResponses(allResponses);
-      
-      if (session) {
-        const myRes = allResponses.find((r: any) => r.participantId === user.uid && r.questionIndex === session.currentQuestionIndex);
-        setMyResponse(myRes || null);
-      }
+
+      const myRes = allResponses.find((r: any) => r.participantId === user.uid && r.questionIndex === session.currentQuestionIndex);
+      setMyResponse(myRes || null);
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, `sessions/${sessionId}/responses`);
     });
 
     return () => {
-      unsubSession();
-      unsubParticipants();
       unsubResponses();
-      if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [sessionId, user, navigate, quiz?.id, session?.currentQuestionIndex]);
+  }, [sessionId, user, session?.hostId, session?.currentQuestionIndex]);
 
   // Timer logic
   useEffect(() => {
