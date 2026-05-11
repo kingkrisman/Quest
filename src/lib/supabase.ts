@@ -1,9 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://hitowyopdadwrgpargph.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhpdG93eW9wZGFkd3JncGFyZ3BoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzIyMDEyMDAsImV4cCI6MTk0Nzc3MTIwMH0.6Rkl3L8cKhZp4ZnvE9qJ9Q8xJ7vL2mK3yZ5aB8cD1eI';
+const supabaseAnonKey = 'PASTE_YOUR_ANON_KEY_HERE';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Initialize only if key is provided
+export const supabase = supabaseAnonKey !== 'PASTE_YOUR_ANON_KEY_HERE'
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
 
 export enum OperationType {
   CREATE = 'create',
