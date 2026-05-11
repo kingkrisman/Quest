@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { db, handleFirestoreError, OperationType } from "../lib/firebase";
+import { supabase, handleSupabaseError, OperationType } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { Sparkles, Save, ArrowLeft, Plus, Trash2, HelpCircle, CheckCircle2, FileUp, FileText, X } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -130,25 +129,23 @@ export function CreateQuiz() {
     setLoading(true);
     try {
       if (generationType === "quiz") {
-        await addDoc(collection(db, "quizzes"), {
-          ...quizData,
-          creatorId: user.uid,
-          creatorName: user.displayName,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
+        const { error } = await supabase.from('quizzes').insert({
+          creator_id: user?.id,
+          title: quizData.title,
+          questions: quizData.questions,
         });
+        if (error) throw error;
       } else {
-        await addDoc(collection(db, "flashcard_sets"), {
-          ...flashcardData,
-          creatorId: user.uid,
-          creatorName: user.displayName,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
+        const { error } = await supabase.from('flashcard_sets').insert({
+          creator_id: user?.id,
+          title: flashcardData?.title,
+          cards: flashcardData?.cards,
         });
+        if (error) throw error;
       }
       navigate("/dashboard");
     } catch (err) {
-      handleFirestoreError(err, OperationType.CREATE, generationType === "quiz" ? "quizzes" : "flashcard_sets");
+      handleSupabaseError(err, OperationType.CREATE, generationType === "quiz" ? "quizzes" : "flashcard_sets");
     } finally {
       setLoading(false);
     }

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { doc, onSnapshot, collection, getDoc } from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { supabase } from "../lib/supabase";
 import { Trophy, Home, Award, Medal, Crown, ArrowRight, RotateCcw } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "../lib/utils";
@@ -16,24 +15,35 @@ export function Results() {
   useEffect(() => {
     if (!sessionId) return;
 
-    const unsubParticipants = onSnapshot(collection(db, `sessions/${sessionId}/participants`), (snapshot) => {
-      setParticipants(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)).sort((a: any, b: any) => b.score - a.score));
-      setLoading(false);
-    });
+    const participantsChannel = supabase
+      .channel(`participants:${sessionId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'participants', filter: `session_id=eq.${sessionId}` }, async (payload) => {
+        const { data: ps } = await supabase.from('participants').select('*').eq('session_id', sessionId).order('score', { ascending: false });
+        setParticipants(ps || []);
+        setLoading(false);
+      })
+      .subscribe();
 
     const fetchSession = async () => {
-      const sDoc = await getDoc(doc(db, "sessions", sessionId));
-      if (sDoc.exists()) {
-        const qDoc = await getDoc(doc(db, "quizzes", sDoc.data().quizId));
-        if (qDoc.exists()) {
-          setQuiz(qDoc.data());
+      const { data: sessionData } = await supabase.from('sessions').select('*').eq('id', sessionId).single();
+      if (sessionData) {
+        const { data: quizData } = await supabase.from('quizzes').select('*').eq('id', sessionData.quiz_id).single();
+        if (quizData) {
+          setQuiz(quizData);
         }
       }
     };
 
+    supabase.from('participants').select('*').eq('session_id', sessionId).order('score', { ascending: false }).then(({ data }) => {
+      setParticipants(data || []);
+      setLoading(false);
+    });
+
     fetchSession();
 
-    return () => unsubParticipants();
+    return () => {
+      supabase.removeChannel(participantsChannel);
+    };
   }, [sessionId]);
 
   if (loading) {
