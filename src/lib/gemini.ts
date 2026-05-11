@@ -1,6 +1,17 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+let ai: GoogleGenAI | null = null;
+
+function getAIInstance() {
+  if (!ai) {
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : undefined);
+    if (!apiKey) {
+      throw new Error("GEMINI_API_KEY environment variable is not set");
+    }
+    ai = new GoogleGenAI({ apiKey });
+  }
+  return ai;
+}
 
 export const quizGeneratorSchema = {
   type: Type.OBJECT,
@@ -70,7 +81,7 @@ export async function generateQuizFromTopic(topicAndContent: string | { mimeType
 
   parts.push({ text: `The quiz should have exactly ${count} questions. Each question must have a time limit of ${globalTimeLimit} seconds. Ensure there is a clear title and description. Each question should have 4 options and 1 correct answer. Focus on interesting facts and varied difficulty.` });
 
-  const response = await ai.models.generateContent({
+  const response = await getAIInstance().models.generateContent({
     model: "gemini-3-flash-preview",
     contents: { parts },
     config: {
@@ -103,7 +114,7 @@ export async function generateFlashcards(topicAndContent: string | { mimeType: s
 
   parts.push({ text: `Generate exactly ${count} flashcards. Ensure there is a clear title for the set. Each card should have a clear concept or question on the 'front' and a concise explanation or answer on the 'back'.` });
 
-  const response = await ai.models.generateContent({
+  const response = await getAIInstance().models.generateContent({
     model: "gemini-3-flash-preview",
     contents: { parts },
     config: {
