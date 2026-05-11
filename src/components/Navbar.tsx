@@ -1,23 +1,49 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabase";
-import { LogIn, LogOut, LayoutDashboard, Database, Zap } from "lucide-react";
+import { LogIn, LogOut } from "lucide-react";
 import { motion } from "motion/react";
+import { useState } from "react";
 
 export function Navbar() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleLogin = async () => {
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin,
-        },
-      });
-      if (error) throw error;
-    } catch (error) {
-      console.error("Login failed:", error);
+      if (authMode === "signup") {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+        if (error) throw error;
+        setEmail("");
+        setPassword("");
+        setShowAuthModal(false);
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
+        setEmail("");
+        setPassword("");
+        setShowAuthModal(false);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Authentication failed");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -77,7 +103,7 @@ export function Navbar() {
               </>
             ) : (
               <button
-                onClick={handleLogin}
+                onClick={() => setShowAuthModal(true)}
                 className="px-5 py-2 bg-indigo-600 text-white font-semibold rounded-xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95"
               >
                 Sign In
@@ -86,6 +112,89 @@ export function Navbar() {
           </div>
         </div>
       </div>
+
+      {showAuthModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl"
+          >
+            <h2 className="text-2xl font-bold text-slate-900 mb-6">
+              {authMode === "login" ? "Sign In" : "Create Account"}
+            </h2>
+
+            <form onSubmit={handleAuth} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="you@example.com"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="••••••••"
+                />
+              </div>
+
+              {error && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-sm">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-all disabled:bg-slate-400"
+              >
+                {loading ? "Loading..." : authMode === "login" ? "Sign In" : "Sign Up"}
+              </button>
+            </form>
+
+            <div className="mt-6 text-center">
+              <p className="text-slate-600 text-sm">
+                {authMode === "login" ? "Don't have an account?" : "Already have an account?"}{" "}
+                <button
+                  onClick={() => {
+                    setAuthMode(authMode === "login" ? "signup" : "login");
+                    setError("");
+                  }}
+                  className="text-indigo-600 font-semibold hover:underline"
+                >
+                  {authMode === "login" ? "Sign Up" : "Sign In"}
+                </button>
+              </p>
+            </div>
+
+            <button
+              onClick={() => {
+                setShowAuthModal(false);
+                setError("");
+              }}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
+            >
+              ✕
+            </button>
+          </motion.div>
+        </div>
+      )}
     </nav>
   );
 }
