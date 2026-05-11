@@ -11,7 +11,13 @@ export function Navbar() {
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (error) {
-      console.error("Login failed", error);
+      if (error instanceof Error) {
+        if (error.message.includes('unauthorized-domain')) {
+          console.error("Firebase domain not authorized. Current domain:", window.location.hostname);
+          console.error("Add this domain to Firebase Console > Authentication > Settings > Authorized domains");
+        }
+        console.error("Login failed:", error.message);
+      }
     }
   };
 
