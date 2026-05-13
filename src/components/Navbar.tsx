@@ -1,32 +1,28 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabase";
-import { LogIn, LogOut, LayoutDashboard, Database, Zap } from "lucide-react";
+import { LogIn, LogOut, User } from "lucide-react";
 import { motion } from "motion/react";
+import { useState } from "react";
 
 export function Navbar() {
-  const { user } = useAuth();
+  const { user, setEmail: setContextEmail, logout } = useAuth();
+  const navigate = useNavigate();
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailInput, setEmailInput] = useState(user?.email || "");
+  const [error, setError] = useState("");
 
-  const handleLogin = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin,
-        },
-      });
-      if (error) throw error;
-    } catch (error) {
-      console.error("Login failed:", error);
-    }
-  };
+  const handleSetEmail = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
 
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-    } catch (error) {
-      console.error("Logout failed", error);
+    if (!emailInput.trim()) {
+      setError("Please enter a valid email");
+      return;
     }
+
+    setContextEmail(emailInput);
+    setShowEmailModal(false);
   };
 
   return (
@@ -50,24 +46,25 @@ export function Navbar() {
           <div className="flex items-center gap-4">
             {user ? (
               <>
-                <Link 
-                  to="/dashboard" 
+                <Link
+                  to="/dashboard"
                   className="hidden sm:flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-indigo-600 transition-colors"
                 >
                   Dashboard
                 </Link>
                 <div className="flex items-center gap-3 pl-4 border-l border-slate-200">
                   <div className="flex flex-col items-end hidden sm:flex">
-                    <span className="text-sm font-semibold text-slate-900">{user.displayName}</span>
+                    <span className="text-sm font-semibold text-slate-900">{user.email}</span>
                     <span className="text-[10px] text-slate-500 uppercase tracking-wider">Active Player</span>
                   </div>
-                  <img 
-                    src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName}`} 
-                    className="w-10 h-10 rounded-full border-2 border-white shadow-sm ring-1 ring-slate-100"
+                  <img
+                    src={`https://ui-avatars.com/api/?name=${user.email}`}
+                    className="w-10 h-10 rounded-full border-2 border-white shadow-sm ring-1 ring-slate-100 cursor-pointer hover:ring-indigo-300 transition-all"
                     alt="User"
+                    onClick={() => setShowEmailModal(true)}
                   />
-                  <button 
-                    onClick={handleLogout}
+                  <button
+                    onClick={() => logout()}
                     className="p-2 text-slate-400 hover:text-rose-500 transition-colors"
                     title="Logout"
                   >
@@ -77,15 +74,67 @@ export function Navbar() {
               </>
             ) : (
               <button
-                onClick={handleLogin}
+                onClick={() => setShowEmailModal(true)}
                 className="px-5 py-2 bg-indigo-600 text-white font-semibold rounded-xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95"
               >
-                Sign In
+                Enter Email
               </button>
             )}
           </div>
         </div>
       </div>
+
+      {showEmailModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl"
+          >
+            <h2 className="text-2xl font-bold text-slate-900 mb-6">Enter Your Email</h2>
+
+            <form onSubmit={handleSetEmail} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  required
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="you@example.com"
+                />
+              </div>
+
+              {error && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-sm">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="w-full py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-all"
+              >
+                Continue
+              </button>
+            </form>
+
+            <button
+              onClick={() => {
+                setShowEmailModal(false);
+                setError("");
+              }}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
+            >
+              ✕
+            </button>
+          </motion.div>
+        </div>
+      )}
+
     </nav>
   );
 }

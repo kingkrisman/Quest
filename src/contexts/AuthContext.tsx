@@ -1,62 +1,45 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { supabase } from "../lib/supabase";
 
 interface AuthUser {
-  id: string;
   email: string;
-  displayName: string;
-  photoURL: string | null;
 }
 
 interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
-  isAdmin: boolean;
+  setEmail: (email: string) => void;
+  logout: () => void;
 }
 
-const AuthContext = createContext<AuthContextType>({ user: null, loading: true, isAdmin: false });
+const AuthContext = createContext<AuthContextType>({ user: null, loading: false, setEmail: () => {}, logout: () => {} });
 
 export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        const authUser: AuthUser = {
-          id: session.user.id,
-          email: session.user.email || '',
-          displayName: session.user.user_metadata?.full_name || "Anonymous Player",
-          photoURL: session.user.user_metadata?.avatar_url || null,
-        };
-        setUser(authUser);
-
-        const { data: existing } = await supabase
-          .from('users')
-          .select('*')
-          .eq('uid', session.user.id)
-          .single();
-
-        if (!existing) {
-          await supabase.from('users').insert({
-            uid: session.user.id,
-            display_name: authUser.displayName,
-            email: authUser.email,
-            photo_url: authUser.photoURL,
-          });
-        }
-      } else {
-        setUser(null);
-      }
-      setLoading(false);
-    });
+    const savedEmail = localStorage.getItem('userEmail');
+    if (savedEmail) {
+      setUser({ email: savedEmail });
+    }
   }, []);
 
+  const setEmail = (email: string) => {
+    if (email.trim()) {
+      setUser({ email });
+      localStorage.setItem('userEmail', email);
+    }
+  };
+
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem('userEmail');
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, isAdmin }}>
+    <AuthContext.Provider value={{ user, loading, setEmail, logout }}>
       {children}
     </AuthContext.Provider>
   );
