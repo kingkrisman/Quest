@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabase";
-import { LogIn, LogOut } from "lucide-react";
+import { LogIn, LogOut, User } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 
@@ -14,6 +14,10 @@ export function Navbar() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [displayName, setDisplayName] = useState(user?.displayName || "");
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState("");
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,9 +53,28 @@ export function Navbar() {
 
   const handleLogout = async () => {
     try {
-      await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
     } catch (error) {
       console.error("Logout failed", error);
+    }
+  };
+
+  const handleProfileUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProfileLoading(true);
+    setProfileError("");
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        data: { full_name: displayName }
+      });
+      if (error) throw error;
+      setShowProfileModal(false);
+    } catch (err) {
+      setProfileError(err instanceof Error ? err.message : "Failed to update profile");
+    } finally {
+      setProfileLoading(false);
     }
   };
 
@@ -87,12 +110,13 @@ export function Navbar() {
                     <span className="text-sm font-semibold text-slate-900">{user.displayName}</span>
                     <span className="text-[10px] text-slate-500 uppercase tracking-wider">Active Player</span>
                   </div>
-                  <img 
-                    src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName}`} 
-                    className="w-10 h-10 rounded-full border-2 border-white shadow-sm ring-1 ring-slate-100"
+                  <img
+                    src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName}`}
+                    className="w-10 h-10 rounded-full border-2 border-white shadow-sm ring-1 ring-slate-100 cursor-pointer hover:ring-indigo-300 transition-all"
                     alt="User"
+                    onClick={() => setShowProfileModal(true)}
                   />
-                  <button 
+                  <button
                     onClick={handleLogout}
                     className="p-2 text-slate-400 hover:text-rose-500 transition-colors"
                     title="Logout"
@@ -187,6 +211,65 @@ export function Navbar() {
               onClick={() => {
                 setShowAuthModal(false);
                 setError("");
+              }}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
+            >
+              ✕
+            </button>
+          </motion.div>
+        </div>
+      )}
+
+      {showProfileModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl"
+          >
+            <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2">
+              <User className="w-6 h-6" />
+              Edit Profile
+            </h2>
+
+            <form onSubmit={handleProfileUpdate} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Display Name
+                </label>
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  required
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="Your name"
+                />
+              </div>
+
+              <div className="text-sm text-slate-500">
+                <p><strong>Email:</strong> {user?.email}</p>
+              </div>
+
+              {profileError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-sm">
+                  {profileError}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={profileLoading}
+                className="w-full py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-all disabled:bg-slate-400"
+              >
+                {profileLoading ? "Saving..." : "Save Changes"}
+              </button>
+            </form>
+
+            <button
+              onClick={() => {
+                setShowProfileModal(false);
+                setProfileError("");
               }}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
             >
