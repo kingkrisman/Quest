@@ -24,7 +24,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    supabase.auth.onAuthStateChange(async (event, session) => {
+    let isMounted = true;
+
+    const initAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!isMounted) return;
+
+        if (session?.user) {
+          const authUser: AuthUser = {
+            id: session.user.id,
+            email: session.user.email || '',
+            displayName: session.user.user_metadata?.full_name || "Anonymous Player",
+            photoURL: session.user.user_metadata?.avatar_url || null,
+          };
+          setUser(authUser);
+        } else {
+          setUser(null);
+        }
+      } catch (error) {
+        console.error("Auth initialization error:", error);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    initAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!isMounted) return;
+
       if (session?.user) {
         const authUser: AuthUser = {
           id: session.user.id,
@@ -34,25 +65,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
         setUser(authUser);
 
-        const { data: existing } = await supabase
-          .from('users')
-          .select('*')
-          .eq('uid', session.user.id)
-          .single();
+        try {
+          const { data: existing } = await supabase
+            .from('users')
+            .select('*')
+            .eq('uid', session.user.id)
+            .single();
 
-        if (!existing) {
-          await supabase.from('users').insert({
-            uid: session.user.id,
-            display_name: authUser.displayName,
-            email: authUser.email,
-            photo_url: authUser.photoURL,
-          });
+          if (!existing) {
+            await supabase.from('users').insert({
+              uid: session.user.id,
+              display_name: authUser.displayName,
+              email: authUser.email,
+              photo_url: authUser.photoURL,
+            });
+          }
+        } catch (error) {
+          console.error("User creation error:", error);
         }
       } else {
         setUser(null);
       }
-      setLoading(false);
     });
+
+    return () => {
+      isMounted = false;
+      subscription?.unsubscribe();
+    };
   }, []);
 
   return (
