@@ -26,26 +26,40 @@ export function Navbar() {
 
     try {
       if (authMode === "signup") {
-        const { error } = await supabase.auth.signUp({
+        const { error, data } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            data: {
+              full_name: email.split("@")[0]
+            }
+          }
         });
-        if (error) throw error;
+        if (error) {
+          console.error("Signup error:", error);
+          throw error;
+        }
         setEmail("");
         setPassword("");
         setShowAuthModal(false);
+        alert("Account created! You can now sign in.");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { error, data } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
-        if (error) throw error;
+        if (error) {
+          console.error("Sign in error:", error);
+          throw error;
+        }
         setEmail("");
         setPassword("");
         setShowAuthModal(false);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Authentication failed");
+      const errorMessage = err instanceof Error ? err.message : "Authentication failed";
+      console.error("Auth error:", errorMessage);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -54,9 +68,13 @@ export function Navbar() {
   const handleLogout = async () => {
     try {
       const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      if (error) {
+        console.error("Logout error:", error);
+        throw error;
+      }
     } catch (error) {
-      console.error("Logout failed", error);
+      console.error("Logout failed:", error);
+      alert("Failed to sign out. Please try again.");
     }
   };
 

@@ -120,7 +120,10 @@ export function CreateQuiz() {
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user) {
+      alert("You must be logged in to save a quiz.");
+      return;
+    }
     if (!quizData.title || quizData.questions.some(q => !q.text || q.options.some(o => !o))) {
       alert("Please fill in all fields.");
       return;
@@ -129,23 +132,33 @@ export function CreateQuiz() {
     setLoading(true);
     try {
       if (generationType === "quiz") {
-        const { error } = await supabase.from('quizzes').insert({
+        const { data, error } = await supabase.from('quizzes').insert({
           creator_id: user?.id,
           title: quizData.title,
           questions: quizData.questions,
-        });
-        if (error) throw error;
+        }).select();
+        if (error) {
+          console.error("Supabase error:", error);
+          throw new Error(error.message || "Failed to save quiz");
+        }
+        alert("Quiz saved successfully!");
+        navigate("/dashboard");
       } else {
-        const { error } = await supabase.from('flashcard_sets').insert({
+        const { data, error } = await supabase.from('flashcard_sets').insert({
           creator_id: user?.id,
           title: flashcardData?.title,
           cards: flashcardData?.cards,
-        });
-        if (error) throw error;
+        }).select();
+        if (error) {
+          console.error("Supabase error:", error);
+          throw new Error(error.message || "Failed to save flashcard set");
+        }
+        alert("Flashcard set saved successfully!");
+        navigate("/dashboard");
       }
-      navigate("/dashboard");
     } catch (err) {
-      handleSupabaseError(err, OperationType.CREATE, generationType === "quiz" ? "quizzes" : "flashcard_sets");
+      console.error("Submit error:", err);
+      alert(err instanceof Error ? err.message : "Failed to save quiz. Please try again.");
     } finally {
       setLoading(false);
     }
