@@ -121,7 +121,7 @@ export function CreateQuiz() {
   const handleSubmit = async (e: any) => {
     e.preventDefault();
     if (!user) {
-      alert("You must be logged in to save a quiz.");
+      alert("You must enter your email to save a quiz.");
       return;
     }
     if (!quizData.title || quizData.questions.some(q => !q.text || q.options.some(o => !o))) {
@@ -133,7 +133,7 @@ export function CreateQuiz() {
     try {
       if (generationType === "quiz") {
         const { data, error } = await supabase.from('quizzes').insert({
-          creator_id: user?.id,
+          creator_email: user.email,
           title: quizData.title,
           questions: quizData.questions,
         }).select();
@@ -145,7 +145,7 @@ export function CreateQuiz() {
         navigate("/dashboard");
       } else {
         const { data, error } = await supabase.from('flashcard_sets').insert({
-          creator_id: user?.id,
+          creator_email: user.email,
           title: flashcardData?.title,
           cards: flashcardData?.cards,
         }).select();
