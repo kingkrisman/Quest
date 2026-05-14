@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { ArrowLeft, ChevronLeft, ChevronRight, RotateCcw, LayoutGrid, Info } from "lucide-react";

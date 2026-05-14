@@ -28,16 +28,16 @@ export function Game() {
     const sessionChannel = supabase
       .channel(`session:${sessionId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions', filter: `id=eq.${sessionId}` }, async (payload) => {
-        const data = payload.new;
+        const data = payload.new as any;
         setSession(data);
 
-        if (data.status === "finished") {
+        if (data?.status === "finished") {
           navigate(`/results/${sessionId}`);
           return;
         }
 
-        if (!quiz || quiz.id !== data.quiz_id) {
-          const { data: quizData } = await supabase.from('quizzes').select('*').eq('id', data.quiz_id).single();
+        if (!quiz || quiz.id !== data?.quiz_id) {
+          const { data: quizData } = await supabase.from('quizzes').select('*').eq('id', data?.quiz_id).single();
           if (quizData) {
             setQuiz(quizData);
           }

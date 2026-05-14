@@ -37,9 +37,9 @@ export function Lobby() {
     const sessionChannel = supabase
       .channel(`session:${sessionId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions', filter: `id=eq.${sessionId}` }, (payload) => {
-        const data = payload.new;
-        setSession({ id: data.id, ...data });
-        if (data.status === "in-progress") {
+        const data = payload.new as any;
+        setSession({ id: data?.id, ...data });
+        if (data?.status === "in-progress") {
           navigate(`/game/${sessionId}`);
         }
         setLoading(false);

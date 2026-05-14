@@ -4,7 +4,7 @@ let ai: GoogleGenAI | null = null;
 
 function getAIInstance() {
   if (!ai) {
-    const apiKey = (import.meta.env as any).VITE_GEMINI_API_KEY || (import.meta.env as any).GEMINI_API_KEY;
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || (process.env as any).GEMINI_API_KEY;
     if (!apiKey) {
       throw new Error("GEMINI_API_KEY environment variable is not set");
     }
