@@ -136,7 +136,6 @@ export function CreateQuiz() {
         const { data, error } = await supabase.from('quizzes').insert({
           creator_id: user.id,
           title: quizData.title,
-          description: quizData.description || "",
           questions: quizData.questions,
         }).select();
         if (error) {
@@ -157,7 +156,6 @@ export function CreateQuiz() {
         const { data, error } = await supabase.from('flashcard_sets').insert({
           creator_id: user.id,
           title: flashcardData.title,
-          description: flashcardData.description || "",
           cards: flashcardData.cards,
         }).select();
         if (error) {
