@@ -122,7 +122,7 @@ export function CreateQuiz() {
   const handleSubmit = async (e: any) => {
     e.preventDefault();
     if (!user) {
-      alert("You must enter your email to save a quiz.");
+      alert("You must sign in to save a quiz.");
       return;
     }
     if (!quizData.title || quizData.questions.some(q => !q.text || q.options.some(o => !o))) {
@@ -134,10 +134,13 @@ export function CreateQuiz() {
     try {
       if (generationType === "quiz") {
         const { data, error } = await supabase.from('quizzes').insert({
-          creator_email: user.email,
+          creatorId: user.id,
+          creatorName: user.user_metadata?.displayName || user.email?.split("@")[0] || "Anonymous",
           title: quizData.title,
           description: quizData.description || "",
           questions: quizData.questions,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         }).select();
         if (error) {
           console.error("Supabase error:", error);
@@ -155,10 +158,13 @@ export function CreateQuiz() {
           return;
         }
         const { data, error } = await supabase.from('flashcard_sets').insert({
-          creator_email: user.email,
+          creatorId: user.id,
+          creatorName: user.user_metadata?.displayName || user.email?.split("@")[0] || "Anonymous",
           title: flashcardData.title,
           description: flashcardData.description || "",
           cards: flashcardData.cards,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         }).select();
         if (error) {
           console.error("Supabase error:", error);
