@@ -19,28 +19,48 @@ export function Profile() {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
+    // Validate file
+    if (!file.type.startsWith("image/")) {
+      alert("Please select a valid image file");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert("File size must be less than 5MB");
+      return;
+    }
+
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop();
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
       const fileName = `${user.id}-${Date.now()}.${ext}`;
 
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      // Upload file
+      const { error: uploadError } = await supabase.storage
         .from("profile-photos")
         .upload(fileName, file, { upsert: true });
 
       if (uploadError) {
-        console.error("Supabase upload error:", uploadError);
-        throw new Error(uploadError.message || "Upload failed");
+        console.error("Upload error details:", uploadError);
+        throw new Error(uploadError.message || "Storage upload failed");
       }
 
-      const { data } = supabase.storage.from("profile-photos").getPublicUrl(fileName);
-      setPhotoUrl(data.publicUrl);
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from("profile-photos")
+        .getPublicUrl(fileName);
+
+      if (!urlData?.publicUrl) {
+        throw new Error("Failed to generate public URL");
+      }
+
+      setPhotoUrl(urlData.publicUrl);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
-      console.error("Upload failed:", errorMsg);
-      alert(`Failed to upload photo: ${errorMsg}`);
+      console.error("Photo upload failed:", errorMsg);
+      alert(`Photo upload failed: ${errorMsg}`);
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";

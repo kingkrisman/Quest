@@ -1,9 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import { motion } from "motion/react";
+import { motion, useTransform, useMotionValue } from "motion/react";
 
 export function ParallaxBackground() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+
+  const blob1X = useTransform(mouseX, [-1, 1], [-15, 15]);
+  const blob1Y = useTransform(mouseY, [-1, 1], [-15, 15]);
+  const blob2X = useTransform(mouseX, [-1, 1], [-25, 25]);
+  const blob2Y = useTransform(mouseY, [-1, 1], [-25, 25]);
+  const blob3X = useTransform(mouseX, [-1, 1], [25, -25]);
+  const blob3Y = useTransform(mouseY, [-1, 1], [25, -25]);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -13,15 +21,13 @@ export function ParallaxBackground() {
       const x = (e.clientX - left) / width;
       const y = (e.clientY - top) / height;
 
-      setMousePosition({
-        x: (x - 0.5) * 60,
-        y: (y - 0.5) * 60,
-      });
+      mouseX.set(x - 0.5);
+      mouseY.set(y - 0.5);
     };
 
     window.addEventListener("mousemove", handleMouseMove);
     return () => window.removeEventListener("mousemove", handleMouseMove);
-  }, []);
+  }, [mouseX, mouseY]);
 
   return (
     <div ref={containerRef} className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -32,14 +38,11 @@ export function ParallaxBackground() {
           backgroundColor: "rgba(218, 119, 86, 0.15)",
           left: "50%",
           top: "50%",
+          x: "-50%",
+          y: "-50%",
+          translateX: blob1X,
+          translateY: blob1Y,
         }}
-        animate={{
-          x: `-50%`,
-          y: `-50%`,
-          translateX: mousePosition.x * 0.2,
-          translateY: mousePosition.y * 0.2,
-        }}
-        transition={{ duration: 0.3, ease: "easeOut" }}
       />
 
       {/* Secondary accent blob */}
@@ -49,12 +52,9 @@ export function ParallaxBackground() {
           backgroundColor: "rgba(251, 146, 60, 0.08)",
           right: "-100px",
           bottom: "-100px",
+          translateX: blob2X,
+          translateY: blob2Y,
         }}
-        animate={{
-          translateX: mousePosition.x * 0.35,
-          translateY: mousePosition.y * 0.35,
-        }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
       />
 
       {/* Tertiary accent blob */}
@@ -64,12 +64,9 @@ export function ParallaxBackground() {
           backgroundColor: "rgba(251, 146, 60, 0.05)",
           left: "-150px",
           top: "-100px",
+          translateX: blob3X,
+          translateY: blob3Y,
         }}
-        animate={{
-          translateX: mousePosition.x * -0.25,
-          translateY: mousePosition.y * -0.25,
-        }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
       />
     </div>
   );
