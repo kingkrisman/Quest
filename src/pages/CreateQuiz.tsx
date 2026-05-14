@@ -134,13 +134,11 @@ export function CreateQuiz() {
     try {
       if (generationType === "quiz") {
         const { data, error } = await supabase.from('quizzes').insert({
-          creatorId: user.id,
-          creatorName: user.user_metadata?.displayName || user.email?.split("@")[0] || "Anonymous",
+          creator_id: user.id,
+          creator_name: user.user_metadata?.displayName || user.email?.split("@")[0] || "Anonymous",
           title: quizData.title,
           description: quizData.description || "",
           questions: quizData.questions,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
         }).select();
         if (error) {
           console.error("Supabase error:", error);
@@ -158,13 +156,11 @@ export function CreateQuiz() {
           return;
         }
         const { data, error } = await supabase.from('flashcard_sets').insert({
-          creatorId: user.id,
-          creatorName: user.user_metadata?.displayName || user.email?.split("@")[0] || "Anonymous",
+          creator_id: user.id,
+          creator_name: user.user_metadata?.displayName || user.email?.split("@")[0] || "Anonymous",
           title: flashcardData.title,
           description: flashcardData.description || "",
           cards: flashcardData.cards,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
         }).select();
         if (error) {
           console.error("Supabase error:", error);
