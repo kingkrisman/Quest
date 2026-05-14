@@ -14,8 +14,8 @@ export function ParallaxBackground() {
       const y = (e.clientY - top) / height;
 
       setMousePosition({
-        x: (x - 0.5) * 80,
-        y: (y - 0.5) * 80,
+        x: (x - 0.5) * 60,
+        y: (y - 0.5) * 60,
       });
     };
 
@@ -34,10 +34,12 @@ export function ParallaxBackground() {
           top: "50%",
         }}
         animate={{
-          x: `calc(-50% + ${mousePosition.x * 0.3}px)`,
-          y: `calc(-50% + ${mousePosition.y * 0.3}px)`,
+          x: `-50%`,
+          y: `-50%`,
+          translateX: mousePosition.x * 0.2,
+          translateY: mousePosition.y * 0.2,
         }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
       />
 
       {/* Secondary accent blob */}
@@ -45,12 +47,14 @@ export function ParallaxBackground() {
         className="absolute w-[400px] h-[400px] blur-[100px] rounded-full pointer-events-none"
         style={{
           backgroundColor: "rgba(251, 146, 60, 0.08)",
+          right: "-100px",
+          bottom: "-100px",
         }}
         animate={{
-          right: `calc(-100px + ${mousePosition.x * 0.5}px)`,
-          bottom: `calc(-100px + ${mousePosition.y * 0.5}px)`,
+          translateX: mousePosition.x * 0.35,
+          translateY: mousePosition.y * 0.35,
         }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
       />
 
       {/* Tertiary accent blob */}
@@ -58,36 +62,15 @@ export function ParallaxBackground() {
         className="absolute w-[500px] h-[500px] blur-[110px] rounded-full pointer-events-none"
         style={{
           backgroundColor: "rgba(251, 146, 60, 0.05)",
+          left: "-150px",
+          top: "-100px",
         }}
         animate={{
-          left: `calc(-150px + ${mousePosition.x * -0.4}px)`,
-          top: `calc(-100px + ${mousePosition.y * -0.4}px)`,
+          translateX: mousePosition.x * -0.25,
+          translateY: mousePosition.y * -0.25,
         }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
       />
-
-      {/* Animated grid background */}
-      <svg
-        className="absolute inset-0 w-full h-full opacity-[0.03]"
-        preserveAspectRatio="none"
-      >
-        <defs>
-          <pattern
-            id="grid"
-            width="50"
-            height="50"
-            patternUnits="userSpaceOnUse"
-          >
-            <path
-              d="M 50 0 L 0 0 0 50"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="0.5"
-            />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#grid)" />
-      </svg>
     </div>
   );
 }
