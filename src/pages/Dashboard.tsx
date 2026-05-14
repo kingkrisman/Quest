@@ -73,7 +73,7 @@ export function Dashboard() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-12">
         <div>
-          <div className="flex items-center gap-2 text-[10px] font-bold text-indigo-500 uppercase tracking-[0.2em] mb-2">
+          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] mb-2" style={{ color: "var(--color-accent)" }}>
             <LayoutGrid className="w-3 h-3" />
             System Control Center
           </div>
@@ -81,30 +81,32 @@ export function Dashboard() {
           <p className="text-slate-500 mt-2 font-medium">Manage your interactive system assessments.</p>
         </div>
         <div className="flex bg-white p-1.5 rounded-2xl border border-slate-100 shadow-sm grow sm:max-w-xs">
-            <button 
+            <button
                 onClick={() => setActiveTab("quizzes")}
                 className={cn(
-                    "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black transition-all",
-                    activeTab === "quizzes" ? "bg-indigo-600 text-white shadow-lg shadow-indigo-100" : "text-slate-400 hover:text-indigo-600"
+                    "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black transition-all text-white",
+                    activeTab === "quizzes" ? "shadow-lg" : "text-slate-400 bg-white"
                 )}
+                style={activeTab === "quizzes" ? { backgroundColor: "var(--color-accent)", boxShadow: "0 10px 15px -3px rgba(218, 119, 86, 0.2)" } : {}}
             >
                 <Zap className="w-4 h-4" />
                 QUIZZES
             </button>
-            <button 
+            <button
                 onClick={() => setActiveTab("flashcards")}
                 className={cn(
                     "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black transition-all",
-                    activeTab === "flashcards" ? "bg-indigo-600 text-white shadow-lg shadow-indigo-100" : "text-slate-400 hover:text-indigo-600"
+                    activeTab === "flashcards" ? "text-white shadow-lg" : "text-slate-400 hover:opacity-70"
                 )}
+                style={activeTab === "flashcards" ? { backgroundColor: "var(--color-accent)", boxShadow: "0 10px 15px -3px rgba(218, 119, 86, 0.2)" } : {}}
             >
                 <BookOpen className="w-4 h-4" />
                 STUDY SETS
             </button>
         </div>
-        <Link 
-          to="/create" 
-          className="inline-flex items-center justify-center gap-3 px-8 py-3.5 bg-indigo-600 text-white rounded-2xl font-black shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 sm:w-auto w-full"
+        <Link
+          to="/create"
+          className="inline-flex items-center justify-center gap-3 px-8 py-3.5 text-white rounded-2xl font-black shadow-xl transition-all active:scale-95 sm:w-auto w-full" style={{ backgroundColor: "var(--color-accent)", boxShadow: "0 20px 25px -5px rgba(218, 119, 86, 0.2)" }}
         >
           <Plus className="w-5 h-5" />
           NEW SPRINT
@@ -126,7 +128,7 @@ export function Dashboard() {
         </div>
         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Capacity</p>
-          <h3 className="text-3xl font-black text-indigo-600">UNLIMITED</h3>
+          <h3 className="text-3xl font-black" style={{ color: "var(--color-accent)" }}>UNLIMITED</h3>
         </div>
       </div>
 
@@ -162,22 +164,22 @@ export function Dashboard() {
                   >
                     <div className="p-8 pb-4 flex-1">
                       <div className="flex items-center justify-between mb-8">
-                        <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                          <Zap className="w-6 h-6 text-indigo-600" />
+                        <div className="w-12 h-12 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform" style={{ backgroundColor: "rgba(218, 119, 86, 0.1)" }}>
+                          <Zap className="w-6 h-6" style={{ color: "var(--color-accent)" }} />
                         </div>
                         <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-50 border border-slate-100 rounded-full text-[10px] font-black text-slate-400 uppercase tracking-widest">
                           <List className="w-3 h-3" />
                           {quiz.questions?.length || 0} Stories
                         </div>
                       </div>
-                      <h3 className="text-2xl font-black text-slate-900 group-hover:text-indigo-600 transition-colors line-clamp-1 tracking-tight">{quiz.title}</h3>
+                      <h3 className="text-2xl font-black text-slate-900 transition-colors line-clamp-1 tracking-tight group-hover:opacity-75">{quiz.title}</h3>
                       <p className="text-sm text-slate-500 mt-3 line-clamp-2 font-medium leading-relaxed">{quiz.description}</p>
                     </div>
                     
                     <div className="px-8 py-6">
                       <button
                         onClick={() => handleHost(quiz.id)}
-                        className="w-full inline-flex items-center justify-center gap-3 py-5 bg-slate-50 text-slate-900 rounded-[2rem] font-black text-sm uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all active:scale-[0.98] group-hover:shadow-lg group-hover:shadow-indigo-100"
+                        className="w-full inline-flex items-center justify-center gap-3 py-5 bg-slate-50 text-slate-900 rounded-[2rem] font-black text-sm uppercase tracking-widest transition-all active:scale-[0.98] group-hover:shadow-lg hover:text-white" style={{ '--hover-bg': 'var(--color-accent)' } as React.CSSProperties}
                       >
                         <Play className="w-5 h-5 fill-current" />
                         Deploy Live
@@ -212,7 +214,7 @@ export function Dashboard() {
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.1 }}
-                    className="group relative flex flex-col bg-white border border-slate-200 rounded-[2.5rem] shadow-sm hover:shadow-2xl hover:shadow-indigo-100/50 transition-all p-2"
+                    className="group relative flex flex-col bg-white border border-slate-200 rounded-[2.5rem] shadow-sm hover:shadow-2xl transition-all p-2" style={{ '--hover-shadow': 'rgba(218, 119, 86, 0.15)' } as React.CSSProperties}
                   >
                     <div className="p-8 pb-4 flex-1">
                       <div className="flex items-center justify-between mb-8">
@@ -224,7 +226,7 @@ export function Dashboard() {
                           {set.cards?.length || 0} Cards
                         </div>
                       </div>
-                      <h3 className="text-2xl font-black text-slate-900 group-hover:text-emerald-600 transition-colors line-clamp-1 tracking-tight">{set.title}</h3>
+                      <h3 className="text-2xl font-black text-slate-900 transition-colors line-clamp-1 tracking-tight group-hover:opacity-75">{set.title}</h3>
                       <p className="text-sm text-slate-500 mt-3 line-clamp-2 font-medium leading-relaxed">{set.description}</p>
                     </div>
                     

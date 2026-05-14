@@ -167,9 +167,9 @@ export function CreateQuiz() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-10">
       <header className="flex items-center justify-between mb-8">
-        <button 
-          onClick={() => navigate(-1)} 
-          className="p-2 -ml-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+        <button
+          onClick={() => navigate(-1)}
+          className="p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-all"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
@@ -179,7 +179,7 @@ export function CreateQuiz() {
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className="flex items-center gap-2 px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all active:scale-95 disabled:opacity-50"
+          className="flex items-center gap-2 px-6 py-2 text-white rounded-xl font-bold transition-all active:scale-95 disabled:opacity-50" style={{ backgroundColor: "var(--color-accent)" }}
         >
           <Save className="w-4 h-4" />
           {loading ? "Saving..." : "Save Quiz"}
@@ -188,22 +188,24 @@ export function CreateQuiz() {
 
       <div className="space-y-8">
         {/* AI Generator Section */}
-        <div className="bg-indigo-50 p-8 rounded-[2.5rem] border border-indigo-100 shadow-sm shadow-indigo-100/50">
+        <div className="p-8 rounded-[2.5rem] border shadow-sm" style={{ backgroundColor: "rgba(218, 119, 86, 0.05)", borderColor: "rgba(218, 119, 86, 0.2)", boxShadow: "0 4px 6px -1px rgba(218, 119, 86, 0.1)" }}>
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-indigo-600" />
-              <h3 className="text-sm font-bold text-indigo-900 uppercase tracking-wider">AI Assistant</h3>
+              <Sparkles className="w-5 h-5" style={{ color: "var(--color-accent)" }} />
+              <h3 className="text-sm font-bold uppercase tracking-wider" style={{ color: "var(--color-accent)" }}>AI Assistant</h3>
             </div>
-            <div className="flex bg-white p-1 rounded-xl border border-indigo-100">
-               <button 
+            <div className="flex bg-white p-1 rounded-xl border" style={{ borderColor: "rgba(218, 119, 86, 0.2)" }}>
+               <button
                 onClick={() => setGenerationType("quiz")}
-                className={cn("px-4 py-1.5 rounded-lg text-xs font-bold transition-all", generationType === "quiz" ? "bg-indigo-600 text-white shadow-md shadow-indigo-100" : "text-slate-400 hover:text-indigo-600")}
+                className={cn("px-4 py-1.5 rounded-lg text-xs font-bold transition-all text-white", generationType === "quiz" ? "shadow-md" : "text-slate-400 bg-white")}
+                style={generationType === "quiz" ? { backgroundColor: "var(--color-accent)", boxShadow: "0 4px 6px -1px rgba(218, 119, 86, 0.2)" } : {}}
                >
                  QUIZ
                </button>
-               <button 
+               <button
                 onClick={() => setGenerationType("flashcards")}
-                className={cn("px-4 py-1.5 rounded-lg text-xs font-bold transition-all", generationType === "flashcards" ? "bg-indigo-600 text-white shadow-md shadow-indigo-100" : "text-slate-400 hover:text-indigo-600")}
+                className={cn("px-4 py-1.5 rounded-lg text-xs font-bold transition-all text-white", generationType === "flashcards" ? "shadow-md" : "text-slate-400 bg-white")}
+                style={generationType === "flashcards" ? { backgroundColor: "var(--color-accent)", boxShadow: "0 4px 6px -1px rgba(218, 119, 86, 0.2)" } : {}}
                >
                  FLASHCARDS
                </button>
@@ -213,21 +215,21 @@ export function CreateQuiz() {
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex-1">
-                <label className="block text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2 px-1">Study Topic</label>
+                <label className="block text-[10px] font-black uppercase tracking-widest mb-2 px-1" style={{ color: "var(--color-accent)" }}>Study Topic</label>
                 <input
                   type="text"
                   placeholder="Enter a topic (e.g. World History, Javascript Basics...)"
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
-                  className="w-full px-5 py-4 bg-white border border-indigo-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all placeholder:text-slate-300 font-medium"
+                  className="w-full px-5 py-4 bg-white rounded-2xl focus:ring-2 focus:outline-none transition-all placeholder:text-slate-300 font-medium" style={{ borderColor: "rgba(218, 119, 86, 0.3)", border: "1px solid rgba(218, 119, 86, 0.3)", "--focus-ring": "var(--color-accent)" } as React.CSSProperties}
                 />
               </div>
               <div className="sm:w-40">
-                <label className="block text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2 px-1">Items Count</label>
+                <label className="block text-[10px] font-black uppercase tracking-widest mb-2 px-1" style={{ color: "var(--color-accent)" }}>Items Count</label>
                 <select
                   value={numQuestions}
                   onChange={(e) => setNumQuestions(Number(e.target.value))}
-                  className="w-full px-4 py-4 bg-white border border-indigo-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all font-bold text-slate-700"
+                  className="w-full px-4 py-4 bg-white rounded-2xl focus:ring-2 focus:outline-none transition-all font-bold text-slate-700" style={{ borderColor: "rgba(218, 119, 86, 0.3)", border: "1px solid rgba(218, 119, 86, 0.3)" }}
                 >
                   {[5, 10, 20, 30, 50, 75, 100].map(n => (
                     <option key={n} value={n}>{n} {generationType === "quiz" ? "Questions" : "Cards"}</option>
@@ -236,11 +238,11 @@ export function CreateQuiz() {
               </div>
               {generationType === "quiz" && (
                 <div className="sm:w-40">
-                  <label className="block text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2 px-1">Time Limit</label>
+                  <label className="block text-[10px] font-black uppercase tracking-widest mb-2 px-1" style={{ color: "var(--color-accent)" }}>Time Limit</label>
                   <select
                     value={globalTimeLimit}
                     onChange={(e) => setGlobalTimeLimit(Number(e.target.value))}
-                    className="w-full px-4 py-4 bg-white border border-indigo-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all font-bold text-slate-700"
+                    className="w-full px-4 py-4 bg-white rounded-2xl focus:ring-2 focus:outline-none transition-all font-bold text-slate-700" style={{ borderColor: "rgba(218, 119, 86, 0.3)", border: "1px solid rgba(218, 119, 86, 0.3)" }}
                   >
                     {[10, 20, 30, 45, 60, 90, 120].map(n => (
                       <option key={n} value={n}>{n} Seconds</option>
@@ -251,36 +253,36 @@ export function CreateQuiz() {
             </div>
 
             <div className="space-y-4">
-              <label className="block text-[10px] font-black text-indigo-400 uppercase tracking-widest px-1">Source Documents (Optional)</label>
+              <label className="block text-[10px] font-black uppercase tracking-widest px-1" style={{ color: "var(--color-accent)" }}>Source Documents (Optional)</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <label 
+                <label
                   htmlFor="file-upload"
-                  className="relative flex flex-col items-center justify-center p-6 border-2 border-dashed border-indigo-200 rounded-3xl bg-white/50 hover:bg-white hover:border-indigo-400 transition-all cursor-pointer group"
+                  className="relative flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-3xl bg-white/50 hover:bg-white transition-all cursor-pointer group" style={{ borderColor: "rgba(218, 119, 86, 0.3)" }}
                 >
-                  <input 
+                  <input
                     id="file-upload"
-                    type="file" 
-                    className="sr-only" 
-                    multiple 
-                    accept=".pdf,.txt" 
+                    type="file"
+                    className="sr-only"
+                    multiple
+                    accept=".pdf,.txt"
                     onChange={handleFileChange}
                   />
-                  <FileUp className="w-8 h-8 text-indigo-400 group-hover:scale-110 transition-transform mb-2" />
-                  <span className="text-xs font-bold text-indigo-600">Upload PDF/Text</span>
+                  <FileUp className="w-8 h-8 group-hover:scale-110 transition-transform mb-2" style={{ color: "var(--color-accent)" }} />
+                  <span className="text-xs font-bold" style={{ color: "var(--color-accent)" }}>Upload PDF/Text</span>
                   <span className="text-[10px] text-slate-400 mt-1 uppercase">Max 10MB per file</span>
                 </label>
 
                 <div className="flex flex-col gap-2 overflow-y-auto max-h-[120px] scrollbar-hide py-1">
                   <AnimatePresence>
                     {files.map((file, i) => (
-                      <motion.div 
+                      <motion.div
                         key={i}
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.95 }}
-                        className="flex items-center gap-3 p-3 bg-white border border-indigo-100 rounded-xl"
+                        className="flex items-center gap-3 p-3 bg-white rounded-xl" style={{ borderColor: "rgba(218, 119, 86, 0.2)", border: "1px solid rgba(218, 119, 86, 0.2)" }}
                       >
-                        <FileText className="w-4 h-4 text-indigo-600" />
+                        <FileText className="w-4 h-4" style={{ color: "var(--color-accent)" }} />
                         <span className="text-xs font-medium text-slate-600 truncate flex-1">{file.name}</span>
                         <button 
                           onClick={() => removeFile(i)}
@@ -303,7 +305,7 @@ export function CreateQuiz() {
             <button
               onClick={handleAiGenerate}
               disabled={aiGenerating || (!topic && files.length === 0)}
-              className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-lg hover:bg-indigo-700 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3 shadow-xl shadow-indigo-100"
+              className="w-full py-5 text-white rounded-2xl font-black text-lg transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3 shadow-xl" style={{ backgroundColor: "var(--color-accent)", boxShadow: "0 20px 25px -5px rgba(218, 119, 86, 0.2)" }}
             >
               {aiGenerating ? (
                 <>
@@ -398,7 +400,7 @@ export function CreateQuiz() {
                             "w-10 h-10 flex items-center justify-center rounded-xl mr-3 transition-all shrink-0",
                             question.correctOptionIndex === oIdx 
                               ? "bg-emerald-500 text-white shadow-lg shadow-emerald-100" 
-                              : "bg-white text-slate-300 hover:text-indigo-600"
+                              : "bg-white text-slate-300 hover:opacity-70"
                           )}
                         >
                           {question.correctOptionIndex === oIdx ? <CheckCircle2 className="w-6 h-6" /> : <div className="w-4 h-4 border-2 border-current rounded-full" />}
@@ -424,7 +426,7 @@ export function CreateQuiz() {
                       <select
                         value={question.points}
                         onChange={(e) => updateQuestion(question.id, { points: Number(e.target.value) })}
-                        className="text-xs font-black bg-slate-50 border-none rounded-lg py-1.5 px-3 focus:ring-0 text-indigo-600 cursor-pointer"
+                        className="text-xs font-black bg-slate-50 border-none rounded-lg py-1.5 px-3 focus:ring-0 cursor-pointer" style={{ color: "var(--color-accent)" }}
                       >
                         <option value={500}>500</option>
                         <option value={1000}>1000</option>
@@ -436,7 +438,7 @@ export function CreateQuiz() {
                       <select
                         value={question.timeLimit}
                         onChange={(e) => updateQuestion(question.id, { timeLimit: Number(e.target.value) })}
-                        className="text-xs font-black bg-slate-50 border-none rounded-lg py-1.5 px-3 focus:ring-0 text-indigo-600 cursor-pointer"
+                        className="text-xs font-black bg-slate-50 border-none rounded-lg py-1.5 px-3 focus:ring-0 cursor-pointer" style={{ color: "var(--color-accent)" }}
                       >
                         <option value={10}>10s</option>
                         <option value={20}>20s</option>
@@ -453,7 +455,7 @@ export function CreateQuiz() {
               <button
                 type="button"
                 onClick={addQuestion}
-                className="w-full py-8 rounded-[2.5rem] border-2 border-dashed border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/50 text-slate-400 hover:text-indigo-600 font-black transition-all flex items-center justify-center gap-3 group"
+                className="w-full py-8 rounded-[2.5rem] border-2 border-dashed border-slate-200 text-slate-400 font-black transition-all flex items-center justify-center gap-3 group hover:text-white" style={{ '--hover-border': 'var(--color-accent)', '--hover-bg': 'rgba(218, 119, 86, 0.05)' } as React.CSSProperties}
               >
                 <div className="w-10 h-10 rounded-full border-2 border-current flex items-center justify-center group-hover:scale-110 transition-transform">
                   <Plus className="w-6 h-6" />
@@ -495,11 +497,11 @@ export function CreateQuiz() {
                    className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm flex flex-col gap-4"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Card #{idx + 1}</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: "var(--color-accent)" }}>Card #{idx + 1}</span>
                   </div>
                   <div className="space-y-3">
-                    <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-50">
-                      <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest mb-1 italic">Front</p>
+                    <div className="p-4 rounded-2xl border" style={{ backgroundColor: "rgba(218, 119, 86, 0.05)", borderColor: "rgba(218, 119, 86, 0.1)" }}>
+                      <p className="text-[10px] font-bold uppercase tracking-widest mb-1 italic" style={{ color: "var(--color-accent)" }}>Front</p>
                       <p className="font-bold text-slate-900">{card.front}</p>
                     </div>
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">

@@ -200,7 +200,7 @@ export function Game() {
   if (loading || !session || !quiz) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-64px)]">
-        <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+        <Loader2 className="w-10 h-10 animate-spin" style={{ color: "var(--color-accent)" }} />
       </div>
     );
   }
@@ -222,7 +222,7 @@ export function Game() {
           </div>
           <div className="h-8 w-px bg-slate-100" />
           <div className="flex flex-col">
-            <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest leading-none mb-1">State</span>
+            <span className="text-[10px] font-black uppercase tracking-widest leading-none mb-1" style={{ color: "var(--color-accent)" }}>State</span>
             <div className="flex items-center gap-2">
               <span className="text-sm font-black text-slate-900 uppercase">
                 {showResults ? "Commit Stage" : "Reviewing Story"}
@@ -262,7 +262,7 @@ export function Game() {
               animate={{ scale: 1, opacity: 1 }}
               className="text-center space-y-4"
             >
-              <div className="inline-flex items-center gap-3 px-4 py-1.5 bg-indigo-50 text-indigo-700 rounded-full text-[10px] font-black uppercase tracking-widest border border-indigo-100 shadow-sm">
+              <div className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm" style={{ backgroundColor: "rgba(218, 119, 86, 0.1)", color: "var(--color-accent)", borderColor: "rgba(218, 119, 86, 0.2)" }}>
                 <Sparkles className="w-3 h-3" />
                 Featured User Story #{session.current_question_index + 1}
               </div>
@@ -279,9 +279,9 @@ export function Game() {
                   disabled={!!myResponse}
                   className={cn(
                     "relative group p-8 rounded-[2rem] text-left transition-all active:scale-[0.98] disabled:active:scale-100 min-h-[120px] flex items-center justify-between border-2",
-                    myResponse?.answer_index === idx 
-                      ? "bg-slate-900 border-slate-900 text-white shadow-2xl shadow-indigo-200" 
-                      : "bg-white border-slate-100 hover:border-indigo-400/50 hover:shadow-xl hover:shadow-indigo-50 transition-all",
+                    myResponse?.answer_index === idx
+                      ? "bg-slate-900 border-slate-900 text-white shadow-2xl"
+                      : "bg-white border-slate-100 hover:border-amber-200/50 hover:shadow-xl transition-all",
                     !!myResponse && myResponse.answer_index !== idx && "opacity-40"
                   )}
                 >
@@ -301,9 +301,9 @@ export function Game() {
 
             {myResponse && (
               <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="flex justify-center">
-                 <div className="inline-flex items-center gap-3 px-6 py-3 bg-white border border-indigo-100 rounded-2xl shadow-lg shadow-indigo-50">
-                    <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
-                    <span className="text-sm font-black text-indigo-600 uppercase tracking-widest animate-pulse">Commit Pending Review...</span>
+                 <div className="inline-flex items-center gap-3 px-6 py-3 bg-white rounded-2xl shadow-lg" style={{ borderColor: "rgba(218, 119, 86, 0.2)", border: "1px solid rgba(218, 119, 86, 0.2)", boxShadow: "0 10px 15px -3px rgba(218, 119, 86, 0.1)" }}>
+                    <Loader2 className="w-4 h-4 animate-spin" style={{ color: "var(--color-accent)" }} />
+                    <span className="text-sm font-black uppercase tracking-widest animate-pulse" style={{ color: "var(--color-accent)" }}>Commit Pending Review...</span>
                  </div>
               </motion.div>
             )}
@@ -325,15 +325,15 @@ export function Game() {
                 
                 {myResponse?.is_correct ? (
                   <>
-                    <div className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center mb-8 shadow-2xl shadow-emerald-200 border border-emerald-100 relative z-10">
-                      <Check className="w-14 h-14 text-emerald-600" />
+                    <div className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center mb-8 shadow-2xl border relative z-10" style={{ boxShadow: "0 25px 50px -12px rgba(218, 119, 86, 0.3)", borderColor: "rgba(218, 119, 86, 0.3)" }}>
+                      <Check className="w-14 h-14" style={{ color: "var(--color-accent)" }} />
                     </div>
                     <h2 className="text-5xl font-black text-slate-900 mb-2 tracking-tight leading-none">Sprint Success</h2>
-                    <p className="text-2xl font-black text-emerald-600 font-mono tracking-tighter">+{myResponse.points_earned} VELOCITY</p>
+                    <p className="text-2xl font-black font-mono tracking-tighter" style={{ color: "var(--color-accent)" }}>+{myResponse.points_earned} VELOCITY</p>
                   </>
                 ) : (
                   <>
-                    <div className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center mb-8 shadow-2xl shadow-rose-200 border border-rose-100 relative z-10">
+                    <div className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center mb-8 shadow-2xl border relative z-10" style={{ boxShadow: "0 25px 50px -12px rgba(220, 38, 38, 0.3)", borderColor: "rgba(220, 38, 38, 0.3)" }}>
                       <X className="w-14 h-14 text-rose-600" />
                     </div>
                     <h2 className="text-5xl font-black text-slate-900 mb-2 tracking-tight leading-none">Build Failure</h2>
@@ -345,7 +345,7 @@ export function Game() {
               <div className="p-12 pt-10 flex-1 flex flex-col">
                 <div className="space-y-4">
                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Correct Specification</h4>
-                   <div className="p-8 bg-slate-900 rounded-3xl border-2 border-slate-800 flex items-center gap-6 shadow-2xl">
+                   <div className="p-8 bg-slate-900 rounded-3xl flex items-center gap-6 shadow-2xl" style={{ borderColor: "var(--color-accent)", border: "2px solid var(--color-accent)" }}>
                      <div className="w-12 h-12 bg-white/10 text-white rounded-2xl flex items-center justify-center font-black text-xl">
                         {String.fromCharCode(65 + currentQuestion.correctOptionIndex)}
                      </div>
@@ -357,7 +357,7 @@ export function Game() {
                   <div className="mt-12">
                     <button
                       onClick={handleNextQuestion}
-                      className="w-full py-6 bg-indigo-600 text-white rounded-[2rem] font-black text-xl hover:bg-indigo-700 transition-all active:scale-[0.98] shadow-2xl shadow-indigo-200 flex items-center justify-center gap-4 group"
+                      className="w-full py-6 text-white rounded-[2rem] font-black text-xl transition-all active:scale-[0.98] shadow-2xl flex items-center justify-center gap-4 group" style={{ backgroundColor: "var(--color-accent)", boxShadow: "0 25px 50px -12px rgba(218, 119, 86, 0.3)" }}
                     >
                       {session.current_question_index === quiz.questions.length - 1 ? "FINALIZE SPRINT" : "NEXT STORY"}
                       <ArrowRight className="w-6 h-6 group-hover:translate-x-2 transition-transform" />
@@ -375,7 +375,7 @@ export function Game() {
             >
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <h3 className="text-xl font-black text-slate-900 flex items-center gap-3">
-                  <Award className="w-6 h-6 text-indigo-600" />
+                  <Award className="w-6 h-6" style={{ color: "var(--color-accent)" }} />
                   Live Rankings
                 </h3>
                 <div className="flex items-center gap-2">
@@ -391,9 +391,9 @@ export function Game() {
                     layout
                     className={cn(
                       "flex items-center gap-4 p-4 rounded-3xl transition-all border",
-                      idx === 0 
-                        ? "bg-slate-900 border-slate-900 text-white shadow-xl shadow-slate-200" 
-                        : (player.user_id === user?.id ? "bg-indigo-50 border-indigo-100" : "bg-slate-50 border-transparent hover:border-slate-200")
+                      idx === 0
+                        ? "bg-slate-900 border-slate-900 text-white shadow-xl"
+                        : (player.user_id === user?.id ? "bg-gray-100 border-gray-200" : "bg-slate-50 border-transparent hover:border-slate-200")
                     )}
                   >
                     <div className={cn(
@@ -412,7 +412,7 @@ export function Game() {
                         {player.display_name}
                       </p>
                       {player.user_id === user?.id && (
-                        <span className="text-[9px] font-black uppercase tracking-widest text-indigo-500">You</span>
+                        <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: "var(--color-accent)" }}>You</span>
                       )}
                     </div>
                     <div className="text-right shrink-0">

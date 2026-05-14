@@ -82,7 +82,7 @@ export function Results() {
                 <span className="text-xs font-black uppercase mt-1">Silver</span>
               </div>
               <p className="font-bold text-gray-700 text-center line-clamp-1">{podium[1].displayName}</p>
-              <span className="font-black text-indigo-600">{podium[1].score}</span>
+              <span className="font-black" style={{ color: "var(--color-accent)" }}>{podium[1].score}</span>
             </motion.div>
           )}
 
@@ -102,7 +102,7 @@ export function Results() {
                 <span className="text-sm font-black uppercase mt-1">Winner</span>
               </div>
               <p className="font-black text-gray-900 text-xl text-center line-clamp-1">{podium[0].displayName}</p>
-              <span className="font-black text-indigo-700 text-2xl">{podium[0].score}</span>
+              <span className="font-black text-2xl" style={{ color: "var(--color-accent)" }}>{podium[0].score}</span>
             </motion.div>
           )}
 
@@ -120,7 +120,7 @@ export function Results() {
                 <span className="text-xs font-black uppercase mt-1">Bronze</span>
               </div>
               <p className="font-bold text-gray-700 text-center line-clamp-1">{podium[2].displayName}</p>
-              <span className="font-black text-indigo-600">{podium[2].score}</span>
+              <span className="font-black" style={{ color: "var(--color-accent)" }}>{podium[2].score}</span>
             </motion.div>
           )}
         </div>
@@ -145,7 +145,7 @@ export function Results() {
         <div className="flex flex-col sm:flex-row items-center gap-4 pb-20">
           <Link 
             to="/dashboard" 
-            className="flex items-center gap-2 px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-xl shadow-indigo-100 transition-all hover:bg-indigo-700 active:scale-95"
+            className="flex items-center gap-2 px-8 py-4 text-white rounded-2xl font-black shadow-xl transition-all active:scale-95" style={{ backgroundColor: "var(--color-accent)", boxShadow: "0 20px 25px -5px rgba(218, 119, 86, 0.2)" }}
           >
             <RotateCcw className="w-5 h-5" />
             Play Again
