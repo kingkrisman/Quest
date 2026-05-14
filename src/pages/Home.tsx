@@ -49,11 +49,16 @@ export function Home() {
           initial={{ scale: 0.8, opacity: 0, rotateZ: -10 }}
           animate={{ scale: 1, opacity: 1, rotateZ: 0 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
-          whileHover={{ scale: 1.05, rotateZ: 5 }}
+          whileHover={{ scale: 1.1, rotateZ: 8 }}
           className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-3xl shadow-2xl mb-6 sm:mb-8 cursor-pointer"
           style={{ backgroundColor: "#DA7756", boxShadow: "0 25px 50px -12px rgba(218, 119, 86, 0.3)" }}
         >
-          <div className="w-8 h-8 sm:w-10 sm:h-10 border-4 border-white rounded-md rotate-45"></div>
+          <svg className="w-8 h-8 sm:w-10 sm:h-10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M6 4L6 20" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
+            <path d="M6 10L16 4" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M6 14L18 6" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            <circle cx="18" cy="14" r="2.5" fill="white" />
+          </svg>
         </motion.div>
         <motion.h2
           className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-tight"
