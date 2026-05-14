@@ -41,28 +41,69 @@ export function Home() {
   return (
     <div className="min-h-[calc(100vh-64px)] flex flex-col justify-center px-4 py-8 sm:py-12 sm:px-6 lg:px-8 bg-slate-50 relative overflow-hidden">
       {/* Decorative gradient */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-200/20 blur-[120px] rounded-full pointer-events-none" />
+      <motion.div
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] blur-[120px] rounded-full pointer-events-none"
+        style={{ backgroundColor: "rgba(218, 119, 86, 0.1)" }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 1 }}
+      />
 
       <div className="relative z-10 mx-auto w-full max-w-md text-center">
         <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.5 }}
-          className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-indigo-600 shadow-2xl shadow-indigo-200 mb-6 sm:mb-8"
+          initial={{ scale: 0.8, opacity: 0, rotateZ: -10 }}
+          animate={{ scale: 1, opacity: 1, rotateZ: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          whileHover={{ scale: 1.05, rotateZ: 5 }}
+          className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-3xl shadow-2xl mb-6 sm:mb-8 cursor-pointer"
+          style={{ backgroundColor: "#DA7756", boxShadow: "0 25px 50px -12px rgba(218, 119, 86, 0.3)" }}
         >
           <div className="w-8 h-8 sm:w-10 sm:h-10 border-4 border-white rounded-md rotate-45"></div>
         </motion.div>
-        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-tight">Master the <span className="text-indigo-600">Sprint.</span></h2>
-        <p className="mt-3 sm:mt-4 text-slate-500 text-base sm:text-lg font-medium">Join the next live system assessment.</p>
+        <motion.h2
+          className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-tight"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
+          Master the <motion.span
+            className="inline-block"
+            style={{ color: "#DA7756" }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+          >Sprint.</motion.span>
+        </motion.h2>
+        <motion.p
+          className="mt-3 sm:mt-4 text-slate-500 text-base sm:text-lg font-medium"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+        >
+          Join the next live system assessment.
+        </motion.p>
       </div>
 
-      <div className="mt-8 sm:mt-10 mx-auto w-full max-w-md relative z-10">
-        <div className="bg-white py-8 px-6 sm:py-10 sm:px-10 shadow-xl shadow-slate-200 rounded-3xl sm:rounded-[2.5rem] border border-slate-100">
+      <motion.div
+        className="mt-8 sm:mt-10 mx-auto w-full max-w-md relative z-10"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.4 }}
+      >
+        <motion.div
+          className="bg-white py-8 px-6 sm:py-10 sm:px-10 shadow-xl shadow-slate-200 rounded-3xl sm:rounded-[2.5rem] border border-slate-100"
+          whileHover={{ boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)" }}
+        >
           <form onSubmit={handleJoin} className="space-y-6">
-            <div className="space-y-2 text-center">
+            <motion.div
+              className="space-y-2 text-center"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+            >
               <label htmlFor="pin" className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Entry Pin Required</label>
               <div className="relative">
-                <input
+                <motion.input
                   id="pin"
                   name="pin"
                   type="text"
@@ -71,27 +112,36 @@ export function Home() {
                   placeholder="000 000"
                   value={pin}
                   onChange={(e) => setPin(e.target.value)}
-                  className="block w-full px-3 py-4 sm:px-4 sm:py-6 text-3xl sm:text-5xl text-center font-black tracking-[0.2em] text-slate-900 border-none bg-slate-50 rounded-2xl sm:rounded-3xl focus:ring-4 focus:ring-indigo-100 focus:outline-none transition-all placeholder:text-slate-200 font-mono"
+                  className="block w-full px-3 py-4 sm:px-4 sm:py-6 text-3xl sm:text-5xl text-center font-black tracking-[0.2em] text-slate-900 border-none bg-slate-50 rounded-2xl sm:rounded-3xl focus:outline-none transition-all placeholder:text-slate-200 font-mono"
+                  style={{ boxShadow: pin.length === 6 ? `0 0 0 4px rgba(218, 119, 86, 0.1)` : "none" }}
+                  whileFocus={{ scale: 1.02 }}
                 />
               </div>
-              {error && <p className="mt-3 text-xs font-bold text-rose-500">{error}</p>}
-            </div>
+              {error && <motion.p
+                className="mt-3 text-xs font-bold text-rose-500"
+                initial={{ opacity: 0, y: -5 }}
+                animate={{ opacity: 1, y: 0 }}
+              >{error}</motion.p>}
+            </motion.div>
 
-            <button
+            <motion.button
               type="submit"
               disabled={loading || pin.length !== 6}
+              whileHover={pin.length === 6 ? { scale: 1.02 } : {}}
+              whileTap={pin.length === 6 ? { scale: 0.98 } : {}}
               className={cn(
-                "w-full flex justify-center py-4 sm:py-5 px-4 border border-transparent rounded-xl sm:rounded-2xl shadow-lg shadow-indigo-100 text-base sm:text-xl font-black text-white transition-all active:scale-[0.98]",
+                "w-full flex justify-center py-4 sm:py-5 px-4 border border-transparent rounded-xl sm:rounded-2xl text-base sm:text-xl font-black text-white transition-all",
                 loading || pin.length !== 6
                   ? "bg-slate-100 text-slate-400 cursor-not-allowed shadow-none"
-                  : "bg-indigo-600 hover:bg-indigo-700"
+                  : "text-white shadow-lg"
               )}
+              style={loading || pin.length !== 6 ? {} : { backgroundColor: "#DA7756", boxShadow: "0 10px 15px -3px rgba(218, 119, 86, 0.3)" }}
             >
               {loading ? "AUTHENTICATING..." : "JOIN SPRINT"}
-            </button>
+            </motion.button>
           </form>
 
-          <div className="mt-8 sm:mt-12">
+          <motion.div className="mt-8 sm:mt-12">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-slate-100" />
@@ -101,33 +151,55 @@ export function Home() {
               </div>
             </div>
 
-            <div className="mt-6 sm:mt-8">
-              <button
+            <motion.div
+              className="mt-6 sm:mt-8"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.6 }}
+            >
+              <motion.button
                 onClick={() => navigate("/dashboard")}
-                className="w-full flex items-center justify-center gap-3 py-3 sm:py-4 px-4 rounded-xl sm:rounded-2xl border border-slate-200 hover:bg-slate-50 text-slate-900 font-bold transition-all active:scale-[0.98]"
+                whileHover={{ scale: 1.02, backgroundColor: "rgba(218, 119, 86, 0.05)" }}
+                whileTap={{ scale: 0.98 }}
+                className="w-full flex items-center justify-center gap-3 py-3 sm:py-4 px-4 rounded-xl sm:rounded-2xl border transition-all"
+                style={{ borderColor: "#DA7756", color: "#DA7756" }}
               >
                 Create Board
                 <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
+              </motion.button>
+            </motion.div>
+          </motion.div>
+        </motion.div>
 
-        <div className="mt-10 sm:mt-16 grid grid-cols-3 gap-3 sm:gap-4">
-          <div className="text-center group cursor-default">
+        <motion.div
+          className="mt-10 sm:mt-16 grid grid-cols-3 gap-3 sm:gap-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+        >
+          <motion.div
+            className="text-center group cursor-default"
+            whileHover={{ scale: 1.05 }}
+          >
             <h4 className="text-xl sm:text-2xl font-black text-slate-900">42</h4>
-            <p className="text-[8px] sm:text-[10px] font-bold text-indigo-500 uppercase tracking-widest group-hover:tracking-[0.2em] transition-all">Sprints</p>
-          </div>
-          <div className="text-center group cursor-default border-x border-slate-200">
+            <p className="text-[8px] sm:text-[10px] font-bold uppercase tracking-widest group-hover:tracking-[0.2em] transition-all" style={{ color: "#DA7756" }}>Sprints</p>
+          </motion.div>
+          <motion.div
+            className="text-center group cursor-default border-x border-slate-200"
+            whileHover={{ scale: 1.05 }}
+          >
             <h4 className="text-xl sm:text-2xl font-black text-slate-900">8.4k</h4>
-            <p className="text-[8px] sm:text-[10px] font-bold text-indigo-500 uppercase tracking-widest group-hover:tracking-[0.2em] transition-all">Users</p>
-          </div>
-          <div className="text-center group cursor-default">
+            <p className="text-[8px] sm:text-[10px] font-bold uppercase tracking-widest group-hover:tracking-[0.2em] transition-all" style={{ color: "#DA7756" }}>Users</p>
+          </motion.div>
+          <motion.div
+            className="text-center group cursor-default"
+            whileHover={{ scale: 1.05 }}
+          >
             <h4 className="text-xl sm:text-2xl font-black text-slate-900">99%</h4>
-            <p className="text-[8px] sm:text-[10px] font-bold text-indigo-500 uppercase tracking-widest group-hover:tracking-[0.2em] transition-all">Uptime</p>
-          </div>
-        </div>
-      </div>
+            <p className="text-[8px] sm:text-[10px] font-bold uppercase tracking-widest group-hover:tracking-[0.2em] transition-all" style={{ color: "#DA7756" }}>Uptime</p>
+          </motion.div>
+        </motion.div>
+      </motion.div>
     </div>
   );
 }

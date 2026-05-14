@@ -107,12 +107,22 @@ export function Navbar() {
     <nav className="h-16 bg-white border-b border-slate-200 px-4 sm:px-6 lg:px-8 flex items-center justify-between sticky top-0 z-50">
       <div className="max-w-7xl mx-auto w-full flex justify-between items-center">
         <Link to="/" className="flex items-center gap-2 group min-w-0">
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center group-hover:rotate-6 transition-transform shadow-lg shadow-indigo-100 flex-shrink-0">
+          <motion.div
+            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg"
+            style={{ backgroundColor: "#DA7756", boxShadow: "0 10px 15px -3px rgba(218, 119, 86, 0.2)" }}
+            whileHover={{ rotate: 6 }}
+            whileTap={{ scale: 0.95 }}
+          >
             <div className="w-4 h-4 border-2 border-white rounded-sm rotate-45"></div>
-          </div>
-          <span className="text-base sm:text-xl font-bold tracking-tight text-slate-900 truncate">
+          </motion.div>
+          <motion.span
+            className="text-base sm:text-xl font-bold tracking-tight text-slate-900 truncate"
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5 }}
+          >
             QUEST
-          </span>
+          </motion.span>
         </Link>
 
         <div className="flex items-center gap-2 sm:gap-4">
@@ -150,7 +160,7 @@ export function Navbar() {
                 </div>
               </>
             ) : (
-              <button
+              <motion.button
                 onClick={() => {
                   setShowAuthModal(true);
                   setAuthStep("email");
@@ -158,10 +168,13 @@ export function Navbar() {
                   setEmailInput("");
                   setPasswordInput("");
                 }}
-                className="px-3 sm:px-5 py-2 bg-indigo-600 text-white text-sm sm:text-base font-semibold rounded-lg sm:rounded-xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 flex-shrink-0 whitespace-nowrap"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="px-3 sm:px-5 py-2 text-white text-sm sm:text-base font-semibold rounded-lg sm:rounded-xl shadow-lg flex-shrink-0 whitespace-nowrap transition-all"
+                style={{ backgroundColor: "#DA7756", boxShadow: "0 10px 15px -3px rgba(218, 119, 86, 0.2)" }}
               >
                 Sign In
-              </button>
+              </motion.button>
             )}
           </div>
         </div>
@@ -198,13 +211,16 @@ export function Navbar() {
                     </div>
                   )}
 
-                  <button
+                  <motion.button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-all disabled:opacity-50"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full py-2 text-white font-semibold rounded-lg transition-all disabled:opacity-50"
+                    style={{ backgroundColor: "#DA7756" }}
                   >
                     Continue
-                  </button>
+                  </motion.button>
                 </form>
               </>
             ) : (
@@ -234,13 +250,16 @@ export function Navbar() {
                     </div>
                   )}
 
-                  <button
+                  <motion.button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-all disabled:opacity-50"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full py-2 text-white font-semibold rounded-lg transition-all disabled:opacity-50"
+                    style={{ backgroundColor: "#DA7756" }}
                   >
                     {loading ? "Authenticating..." : "Sign In"}
-                  </button>
+                  </motion.button>
                 </form>
 
                 <button
