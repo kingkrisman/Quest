@@ -133,11 +133,15 @@ export function CreateQuiz() {
     setLoading(true);
     try {
       if (generationType === "quiz") {
-        const { data, error } = await supabase.from('quizzes').insert({
+        const payload: any = {
           creator_id: user.id,
           title: quizData.title,
           questions: quizData.questions,
-        }).select();
+        };
+        if (quizData.description) {
+          payload.description = quizData.description;
+        }
+        const { data, error } = await supabase.from('quizzes').insert(payload).select();
         if (error) {
           console.error("Supabase error:", error);
           throw new Error(error.message || "Failed to save quiz");
@@ -153,11 +157,15 @@ export function CreateQuiz() {
           alert("Please generate or create at least one flashcard.");
           return;
         }
-        const { data, error } = await supabase.from('flashcard_sets').insert({
+        const payload: any = {
           creator_id: user.id,
           title: flashcardData.title,
           cards: flashcardData.cards,
-        }).select();
+        };
+        if (flashcardData.description) {
+          payload.description = flashcardData.description;
+        }
+        const { data, error } = await supabase.from('flashcard_sets').insert(payload).select();
         if (error) {
           console.error("Supabase error:", error);
           throw new Error(error.message || "Failed to save flashcard set");
