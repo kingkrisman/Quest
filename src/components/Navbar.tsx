@@ -136,20 +136,25 @@ export function Navbar() {
               <>
                 <Link
                   to="/dashboard"
-                  className="hidden sm:flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-indigo-600 transition-colors flex-shrink-0"
+                  className="hidden sm:flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400 hover:opacity-70 transition-opacity flex-shrink-0"
                 >
                   Dashboard
                 </Link>
                 <div className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-4 border-l border-slate-200">
                   <div className="flex-col items-end hidden sm:flex">
-                    <span className="text-sm font-semibold text-slate-900 truncate">{user.email}</span>
+                    <span className="text-sm font-semibold text-slate-900 truncate">{user.user_metadata?.displayName || user.email?.split("@")[0]}</span>
                     <span className="text-[10px] text-slate-500 uppercase tracking-wider">Active Player</span>
                   </div>
-                  <img
-                    src={`https://ui-avatars.com/api/?name=${user.email}`}
-                    className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border-2 border-white shadow-sm ring-1 ring-slate-100 cursor-pointer hover:ring-indigo-300 transition-all flex-shrink-0"
-                    alt="User"
-                  />
+                  <Link
+                    to="/profile"
+                    className="transition-all flex-shrink-0 hover:scale-110"
+                  >
+                    <img
+                      src={user.user_metadata?.photoURL || `https://ui-avatars.com/api/?name=${user.email}`}
+                      className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border-2 border-white shadow-sm ring-1 ring-slate-100"
+                      alt="User"
+                    />
+                  </Link>
                   <button
                     onClick={handleLogout}
                     className="p-1 sm:p-2 text-slate-400 hover:text-rose-500 transition-colors flex-shrink-0"

@@ -136,9 +136,9 @@ export function Flashcards() {
         {/* Controls */}
         <div className="mt-12 flex flex-col items-center gap-8">
             <div className="flex items-center gap-6">
-                <button 
+                <button
                    onClick={handlePrev}
-                   className="w-16 h-16 rounded-3xl bg-white border border-slate-100 text-slate-400 hover:text-indigo-600 hover:border-indigo-100 transition-all active:scale-90 flex items-center justify-center shadow-lg shadow-slate-100 group"
+                   className="w-16 h-16 rounded-3xl bg-white border border-slate-100 text-slate-400 transition-all active:scale-90 flex items-center justify-center shadow-lg shadow-slate-100 group hover:text-white" style={{ borderColor: "var(--color-accent)", "--hover-text": "white" } as React.CSSProperties}
                 >
                     <ChevronLeft className="w-8 h-8 group-hover:-translate-x-1 transition-transform" />
                 </button>
@@ -149,9 +149,9 @@ export function Flashcards() {
                     <span className="text-xl font-black text-slate-500">{flashcardSet.cards.length}</span>
                 </div>
 
-                <button 
+                <button
                    onClick={handleNext}
-                   className="w-16 h-16 rounded-3xl bg-white border border-slate-100 text-slate-400 hover:text-indigo-600 hover:border-indigo-100 transition-all active:scale-90 flex items-center justify-center shadow-lg shadow-slate-100 group"
+                   className="w-16 h-16 rounded-3xl bg-white border border-slate-100 text-slate-400 transition-all active:scale-90 flex items-center justify-center shadow-lg shadow-slate-100 group hover:text-white" style={{ borderColor: "var(--color-accent)" } as React.CSSProperties}
                 >
                     <ChevronRight className="w-8 h-8 group-hover:translate-x-1 transition-transform" />
                 </button>

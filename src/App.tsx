@@ -8,6 +8,7 @@ import { Lobby } from "./pages/Lobby";
 import { Game } from "./pages/Game";
 import { Results } from "./pages/Results";
 import { Flashcards } from "./pages/Flashcards";
+import { Profile } from "./pages/Profile";
 
 function AppRoutes() {
   const { user, loading } = useAuth();
@@ -21,7 +22,7 @@ function AppRoutes() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans selection:bg-indigo-100 selection:text-indigo-900">
+    <div className="min-h-screen bg-gray-50 flex flex-col font-sans selection:bg-gray-50 selection:text-slate-900">
       <Navbar />
       <main className="flex-1">
         <Routes>
@@ -46,9 +47,13 @@ function AppRoutes() {
             path="/results/:sessionId" 
             element={user ? <Results /> : <Navigate to="/" />} 
           />
-          <Route 
-            path="/flashcards/:setId" 
-            element={user ? <Flashcards /> : <Navigate to="/" />} 
+          <Route
+            path="/flashcards/:setId"
+            element={user ? <Flashcards /> : <Navigate to="/" />}
+          />
+          <Route
+            path="/profile"
+            element={user ? <Profile /> : <Navigate to="/" />}
           />
         </Routes>
       </main>

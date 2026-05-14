@@ -108,7 +108,7 @@ export function Lobby() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-64px)]">
-        <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+        <Loader2 className="w-10 h-10 animate-spin" style={{ color: "var(--color-accent)" }} />
         <p className="mt-4 text-gray-500 font-medium">Entering lobby...</p>
       </div>
     );
@@ -117,7 +117,7 @@ export function Lobby() {
   const isHost = session?.hostId === user?.uid;
 
   return (
-    <div className="min-h-[calc(100vh-64px)] bg-indigo-600 relative overflow-hidden flex flex-col items-center justify-center p-4">
+    <div className="min-h-[calc(100vh-64px)] relative overflow-hidden flex flex-col items-center justify-center p-4" style={{ backgroundColor: "var(--color-accent)" }}>
       {/* Background elements */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden opacity-10 pointer-events-none">
         <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-white blur-3xl" />
@@ -135,7 +135,7 @@ export function Lobby() {
             {participants.length} Players joined
           </div>
           <h1 className="text-white text-3xl font-black mb-2 tracking-tight">Interactive Quiz Lobby</h1>
-          <p className="text-indigo-100 text-lg font-medium opacity-80">Share the PIN to invite your friends!</p>
+          <p className="text-lg font-medium opacity-80" style={{ color: "rgba(255, 255, 255, 0.8)" }}>Share the PIN to invite your friends!</p>
         </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full">
@@ -145,7 +145,7 @@ export function Lobby() {
             animate={{ x: 0, opacity: 1 }}
             className="bg-white rounded-3xl p-8 shadow-2xl flex flex-col items-center justify-center space-y-6"
           >
-            <span className="text-xs font-black text-indigo-600 uppercase tracking-widest">Game PIN</span>
+            <span className="text-xs font-black uppercase tracking-widest" style={{ color: "var(--color-accent)" }}>Game PIN</span>
             <div 
               onClick={copyPin}
               className="group relative cursor-pointer active:scale-95 transition-transform"
@@ -160,7 +160,7 @@ export function Lobby() {
               <button
                 onClick={handleStart}
                 disabled={participants.length === 0 || starting}
-                className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50"
+                className="w-full py-5 text-white rounded-2xl font-black text-xl transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50" style={{ backgroundColor: "var(--color-accent)", boxShadow: "0 20px 25px -5px rgba(218, 119, 86, 0.2)" }}
               >
                 {starting ? (
                   <Loader2 className="w-6 h-6 animate-spin" />
@@ -170,9 +170,9 @@ export function Lobby() {
                 {starting ? "INITIALIZING..." : "START GAME"}
               </button>
             ) : (
-              <div className="text-center p-4 bg-indigo-50 rounded-2xl w-full border-2 border-indigo-100/50">
-                <p className="text-indigo-600 font-black text-lg animate-pulse">WAITING FOR HOST TO START...</p>
-                <p className="text-indigo-400 text-sm mt-1">Get ready to shine!</p>
+              <div className="text-center p-4 rounded-2xl w-full border-2" style={{ backgroundColor: "rgba(218, 119, 86, 0.1)", borderColor: "rgba(218, 119, 86, 0.2)" }}>
+                <p className="font-black text-lg animate-pulse" style={{ color: "var(--color-accent)" }}>WAITING FOR HOST TO START...</p>
+                <p className="text-sm mt-1" style={{ color: "var(--color-accent)" }}>Get ready to shine!</p>
               </div>
             )}
           </motion.div>
@@ -203,12 +203,12 @@ export function Lobby() {
                       alt={player.displayName}
                     />
                     <span className="text-white font-bold">{player.displayName}</span>
-                    {player.uid === user?.uid && <span className="ml-auto text-[10px] font-bold text-indigo-200 bg-white/10 px-2 py-1 rounded">YOU</span>}
+                    {player.uid === user?.uid && <span className="ml-auto text-[10px] font-bold bg-white/10 px-2 py-1 rounded" style={{ color: "rgba(255, 255, 255, 0.7)" }}>YOU</span>}
                   </motion.div>
                 ))}
               </AnimatePresence>
               {participants.length === 0 && (
-                <div className="flex flex-col items-center justify-center h-full text-indigo-200/50">
+                <div className="flex flex-col items-center justify-center h-full" style={{ color: "rgba(218, 119, 86, 0.3)" }}>
                   <Users className="w-12 h-12 mb-3 opacity-20" />
                   <p className="font-bold">No one here yet...</p>
                 </div>
