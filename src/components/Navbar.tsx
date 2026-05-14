@@ -110,10 +110,15 @@ export function Navbar() {
           <motion.div
             className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg"
             style={{ backgroundColor: "#DA7756", boxShadow: "0 10px 15px -3px rgba(218, 119, 86, 0.2)" }}
-            whileHover={{ rotate: 6 }}
+            whileHover={{ rotate: 6, scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
           >
-            <div className="w-4 h-4 border-2 border-white rounded-sm rotate-45"></div>
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 4L6 20" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
+              <path d="M6 10L16 4" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M6 14L18 6" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              <circle cx="18" cy="14" r="2.5" fill="white" />
+            </svg>
           </motion.div>
           <motion.span
             className="text-base sm:text-xl font-bold tracking-tight text-slate-900 truncate"
@@ -121,7 +126,7 @@ export function Navbar() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
           >
-            QUEST
+            KÀWÉ
           </motion.span>
         </Link>
 
