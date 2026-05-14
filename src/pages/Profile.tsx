@@ -23,17 +23,24 @@ export function Profile() {
     try {
       const ext = file.name.split(".").pop();
       const fileName = `${user.id}-${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from("profile-photos")
         .upload(fileName, file, { upsert: true });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error("Supabase upload error:", uploadError);
+        throw new Error(uploadError.message || "Upload failed");
+      }
 
       const { data } = supabase.storage.from("profile-photos").getPublicUrl(fileName);
       setPhotoUrl(data.publicUrl);
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
-      console.error("Upload failed:", err);
-      alert("Failed to upload photo");
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.error("Upload failed:", errorMsg);
+      alert(`Failed to upload photo: ${errorMsg}`);
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";

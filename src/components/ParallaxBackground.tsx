@@ -8,14 +8,14 @@ export function ParallaxBackground() {
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!containerRef.current) return;
-      
+
       const { left, top, width, height } = containerRef.current.getBoundingClientRect();
       const x = (e.clientX - left) / width;
       const y = (e.clientY - top) / height;
-      
+
       setMousePosition({
-        x: (x - 0.5) * 100,
-        y: (y - 0.5) * 100,
+        x: (x - 0.5) * 80,
+        y: (y - 0.5) * 80,
       });
     };
 
@@ -32,14 +32,12 @@ export function ParallaxBackground() {
           backgroundColor: "rgba(218, 119, 86, 0.15)",
           left: "50%",
           top: "50%",
-          x: "-50%",
-          y: "-50%",
         }}
         animate={{
-          x: `-50%`,
-          y: `-50%`,
+          x: `calc(-50% + ${mousePosition.x * 0.3}px)`,
+          y: `calc(-50% + ${mousePosition.y * 0.3}px)`,
         }}
-        transition={{ duration: 0.3, ease: "easeOut" }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
       />
 
       {/* Secondary accent blob */}
@@ -47,12 +45,10 @@ export function ParallaxBackground() {
         className="absolute w-[400px] h-[400px] blur-[100px] rounded-full pointer-events-none"
         style={{
           backgroundColor: "rgba(251, 146, 60, 0.08)",
-          right: "-100px",
-          bottom: "-100px",
         }}
         animate={{
-          right: mousePosition.x < 0 ? "-150px" : "-50px",
-          bottom: mousePosition.y < 0 ? "-150px" : "-50px",
+          right: `calc(-100px + ${mousePosition.x * 0.5}px)`,
+          bottom: `calc(-100px + ${mousePosition.y * 0.5}px)`,
         }}
         transition={{ duration: 0.5, ease: "easeOut" }}
       />
@@ -62,12 +58,10 @@ export function ParallaxBackground() {
         className="absolute w-[500px] h-[500px] blur-[110px] rounded-full pointer-events-none"
         style={{
           backgroundColor: "rgba(251, 146, 60, 0.05)",
-          left: "-150px",
-          top: "-100px",
         }}
         animate={{
-          left: mousePosition.x > 0 ? "-100px" : "-200px",
-          top: mousePosition.y > 0 ? "-50px" : "-150px",
+          left: `calc(-150px + ${mousePosition.x * -0.4}px)`,
+          top: `calc(-100px + ${mousePosition.y * -0.4}px)`,
         }}
         transition={{ duration: 0.6, ease: "easeOut" }}
       />
