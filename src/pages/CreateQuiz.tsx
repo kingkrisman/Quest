@@ -135,7 +135,6 @@ export function CreateQuiz() {
       if (generationType === "quiz") {
         const { data, error } = await supabase.from('quizzes').insert({
           creator_id: user.id,
-          creator_name: user.user_metadata?.displayName || user.email?.split("@")[0] || "Anonymous",
           title: quizData.title,
           description: quizData.description || "",
           questions: quizData.questions,
@@ -157,7 +156,6 @@ export function CreateQuiz() {
         }
         const { data, error } = await supabase.from('flashcard_sets').insert({
           creator_id: user.id,
-          creator_name: user.user_metadata?.displayName || user.email?.split("@")[0] || "Anonymous",
           title: flashcardData.title,
           description: flashcardData.description || "",
           cards: flashcardData.cards,
