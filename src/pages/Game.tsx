@@ -5,6 +5,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { Trophy, Clock, Users, ArrowRight, Check, X, Loader2, Award, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "../lib/utils";
+import { CustomLoader } from "../components/CustomLoader";
 
 export function Game() {
   const { sessionId } = useParams();
@@ -199,9 +200,13 @@ export function Game() {
 
   if (loading || !session || !quiz) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-64px)]">
-        <Loader2 className="w-10 h-10 animate-spin" style={{ color: "var(--color-accent)" }} />
-      </div>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="flex flex-col items-center justify-center min-h-[calc(100vh-64px)]"
+      >
+        <CustomLoader />
+      </motion.div>
     );
   }
 
@@ -212,46 +217,79 @@ export function Game() {
   return (
     <div className="min-h-[calc(100vh-64px)] bg-slate-50 flex flex-col">
       {/* Header Info */}
-      <div className="bg-white border-b border-slate-200 py-4 px-4 sm:px-8 flex items-center justify-between sticky top-16 z-40 shadow-sm">
-        <div className="flex items-center gap-6">
-          <div className="flex flex-col">
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white border-b border-slate-200 py-4 px-4 sm:px-8 flex items-center justify-between sticky top-16 z-40 shadow-sm"
+      >
+        <motion.div className="flex items-center gap-6">
+          <motion.div
+            className="flex flex-col"
+            whileHover={{ scale: 1.05 }}
+          >
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Iteration</span>
-            <span className="text-lg font-black text-slate-900 tabular-nums">
+            <motion.span
+              key={session.current_question_index}
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="text-lg font-black text-slate-900 tabular-nums"
+            >
               {session.current_question_index + 1} <span className="text-slate-300 font-bold mx-1">/</span> {quiz.questions.length}
-            </span>
-          </div>
+            </motion.span>
+          </motion.div>
           <div className="h-8 w-px bg-slate-100" />
-          <div className="flex flex-col">
+          <motion.div className="flex flex-col">
             <span className="text-[10px] font-black uppercase tracking-widest leading-none mb-1" style={{ color: "var(--color-accent)" }}>State</span>
             <div className="flex items-center gap-2">
               <span className="text-sm font-black text-slate-900 uppercase">
                 {showResults ? "Commit Stage" : "Reviewing Story"}
               </span>
-              <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", showResults ? "bg-rose-500" : "bg-indigo-500")} />
+              <motion.div
+                className={cn("w-1.5 h-1.5 rounded-full", showResults ? "bg-rose-500" : "bg-indigo-500")}
+                animate={{ scale: [1, 1.5, 1] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+              />
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
 
-        <div className="flex items-center gap-6">
-          <div className={cn(
-            "flex items-center gap-4 px-6 py-3 rounded-2xl border-2 font-mono transition-all",
-            timeLeft <= 5 
-              ? "bg-rose-50 border-rose-200 text-rose-600 animate-pulse scale-110 shadow-lg shadow-rose-100" 
-              : "bg-white border-slate-100 text-slate-900"
-          )}>
-            <Clock className={cn("w-5 h-5", timeLeft <= 5 ? "animate-spin" : "")} />
+        <motion.div className="flex items-center gap-6">
+          <motion.div
+            className={cn(
+              "flex items-center gap-4 px-6 py-3 rounded-2xl border-2 font-mono transition-all",
+              timeLeft <= 5
+                ? "bg-rose-50 border-rose-200 text-rose-600 scale-110 shadow-lg shadow-rose-100"
+                : "bg-white border-slate-100 text-slate-900"
+            )}
+            animate={timeLeft <= 5 ? { scale: [1, 1.1, 1] } : {}}
+            transition={{ duration: 0.5, repeat: Infinity }}
+          >
+            <motion.div
+              animate={timeLeft <= 5 ? { rotate: 360 } : {}}
+              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            >
+              <Clock className="w-5 h-5" />
+            </motion.div>
             <span className="text-2xl font-black tabular-nums">{timeLeft}:00</span>
-          </div>
-          <div className="hidden lg:flex items-center gap-3 px-4 py-2 border border-slate-100 rounded-xl bg-slate-50">
+          </motion.div>
+          <motion.div
+            className="hidden lg:flex items-center gap-3 px-4 py-2 border border-slate-100 rounded-xl bg-slate-50"
+            whileHover={{ scale: 1.05 }}
+          >
              <div className="flex -space-x-2">
                {participants.slice(0, 3).map((p, i) => (
-                 <img key={i} src={p.photo_url} className="w-6 h-6 rounded-full border-2 border-white ring-1 ring-slate-100" />
+                 <motion.img
+                   key={i}
+                   src={p.photo_url}
+                   whileHover={{ scale: 1.15, zIndex: 10 }}
+                   className="w-6 h-6 rounded-full border-2 border-white ring-1 ring-slate-100 transition-all"
+                 />
                ))}
              </div>
              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{answeredCount} Commits</span>
-          </div>
-        </div>
-      </div>
+          </motion.div>
+        </motion.div>
+      </motion.div>
 
       <div className="flex-1 flex flex-col items-center justify-center max-w-7xl mx-auto w-full px-4 py-12">
         {!showResults ? (

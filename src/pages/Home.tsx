@@ -4,6 +4,7 @@ import { supabase, handleSupabaseError, OperationType } from "../lib/supabase";
 import { Search, PlusCircle, Play, Globe, Trophy, Users, ArrowRight } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "../lib/utils";
+import { ParallaxBackground } from "../components/ParallaxBackground";
 
 export function Home() {
   const [pin, setPin] = useState("");
@@ -40,14 +41,8 @@ export function Home() {
 
   return (
     <div className="min-h-[calc(100vh-64px)] flex flex-col justify-center px-4 py-8 sm:py-12 sm:px-6 lg:px-8 bg-slate-50 relative overflow-hidden">
-      {/* Decorative gradient */}
-      <motion.div
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] blur-[120px] rounded-full pointer-events-none"
-        style={{ backgroundColor: "rgba(218, 119, 86, 0.1)" }}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 1 }}
-      />
+      {/* Parallax Background */}
+      <ParallaxBackground />
 
       <div className="relative z-10 mx-auto w-full max-w-md text-center">
         <motion.div

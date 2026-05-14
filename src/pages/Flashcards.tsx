@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase";
 import { ArrowLeft, ChevronLeft, ChevronRight, RotateCcw, LayoutGrid, Info } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "../lib/utils";
+import { CustomLoader } from "../components/CustomLoader";
 
 export function Flashcards() {
   const { setId } = useParams();
@@ -31,7 +32,15 @@ export function Flashcards() {
     fetchSet();
   }, [setId]);
 
-  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  if (loading) return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="flex items-center justify-center min-h-screen"
+    >
+      <CustomLoader />
+    </motion.div>
+  );
   if (!flashcardSet || !flashcardSet.cards || flashcardSet.cards.length === 0) return (
     <div className="flex flex-col items-center justify-center min-h-screen gap-6">
         <div className="text-center">

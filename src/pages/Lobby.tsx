@@ -5,6 +5,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { Users, Play, Copy, Check, LogOut, ArrowRight, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "../lib/utils";
+import { CustomLoader } from "../components/CustomLoader";
 
 export function Lobby() {
   const { sessionId } = useParams();
@@ -107,10 +108,13 @@ export function Lobby() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-64px)]">
-        <Loader2 className="w-10 h-10 animate-spin" style={{ color: "var(--color-accent)" }} />
-        <p className="mt-4 text-gray-500 font-medium">Entering lobby...</p>
-      </div>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="flex flex-col items-center justify-center min-h-[calc(100vh-64px)]"
+      >
+        <CustomLoader />
+      </motion.div>
     );
   }
 

@@ -3,8 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { Plus, Play, Clock, BookOpen, ChevronRight, LayoutGrid, List, Zap } from "lucide-react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { cn, formatDate, generatePin } from "../lib/utils";
+import { CustomLoader } from "../components/CustomLoader";
 
 export function Dashboard() {
   const { user } = useAuth();
@@ -71,18 +72,49 @@ export function Dashboard() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-12">
-        <div>
-          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] mb-2" style={{ color: "var(--color-accent)" }}>
+      <motion.header
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-12"
+      >
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
+          <motion.div
+            className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] mb-2"
+            style={{ color: "var(--color-accent)" }}
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+          >
             <LayoutGrid className="w-3 h-3" />
             System Control Center
-          </div>
-          <h1 className="text-4xl font-black text-slate-900 tracking-tight">Project Backlog</h1>
-          <p className="text-slate-500 mt-2 font-medium">Manage your interactive system assessments.</p>
-        </div>
-        <div className="flex bg-white p-1.5 rounded-2xl border border-slate-100 shadow-sm grow sm:max-w-xs">
-            <button
+          </motion.div>
+          <motion.h1
+            className="text-4xl font-black text-slate-900 tracking-tight"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            Project Backlog
+          </motion.h1>
+          <motion.p
+            className="text-slate-500 mt-2 font-medium"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+          >
+            Manage your interactive system assessments.
+          </motion.p>
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.2 }}
+          className="flex bg-white p-1.5 rounded-2xl border border-slate-100 shadow-sm grow sm:max-w-xs"
+        >
+            <motion.button
                 onClick={() => setActiveTab("quizzes")}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 className={cn(
                     "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black transition-all text-white",
                     activeTab === "quizzes" ? "shadow-lg" : "text-slate-400 bg-white"
@@ -91,9 +123,11 @@ export function Dashboard() {
             >
                 <Zap className="w-4 h-4" />
                 QUIZZES
-            </button>
-            <button
+            </motion.button>
+            <motion.button
                 onClick={() => setActiveTab("flashcards")}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 className={cn(
                     "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black transition-all",
                     activeTab === "flashcards" ? "text-white shadow-lg" : "text-slate-400 hover:opacity-70"
@@ -102,42 +136,61 @@ export function Dashboard() {
             >
                 <BookOpen className="w-4 h-4" />
                 STUDY SETS
-            </button>
-        </div>
-        <Link
-          to="/create"
-          className="inline-flex items-center justify-center gap-3 px-8 py-3.5 text-white rounded-2xl font-black shadow-xl transition-all active:scale-95 sm:w-auto w-full" style={{ backgroundColor: "var(--color-accent)", boxShadow: "0 20px 25px -5px rgba(218, 119, 86, 0.2)" }}
+            </motion.button>
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, x: 10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.3 }}
         >
-          <Plus className="w-5 h-5" />
-          NEW SPRINT
-        </Link>
-      </header>
+          <Link
+            to="/create"
+            className="inline-flex items-center justify-center gap-3 px-8 py-3.5 text-white rounded-2xl font-black shadow-xl transition-all active:scale-95 sm:w-auto w-full hover:shadow-2xl"
+            style={{ backgroundColor: "var(--color-accent)", boxShadow: "0 20px 25px -5px rgba(218, 119, 86, 0.2)" }}
+          >
+            <Plus className="w-5 h-5" />
+            NEW SPRINT
+          </Link>
+        </motion.div>
+      </motion.header>
 
       {/* Quick Stats Overlay */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12">
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Assets</p>
-          <h3 className="text-3xl font-black text-slate-900">{quizzes.length + flashcardSets.length}</h3>
-        </div>
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Status</p>
-          <div className="flex items-center gap-2">
-            <h3 className="text-3xl font-black text-emerald-600 uppercase tracking-tight">Optimal</h3>
-            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Capacity</p>
-          <h3 className="text-3xl font-black" style={{ color: "var(--color-accent)" }}>UNLIMITED</h3>
-        </div>
-      </div>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12"
+      >
+        {[{ label: "Total Assets", value: quizzes.length + flashcardSets.length }, { label: "Status", value: "Optimal" }, { label: "Capacity", value: "UNLIMITED" }].map((stat, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 + i * 0.05 }}
+            whileHover={{ y: -4 }}
+            className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-lg transition-all"
+          >
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{stat.label}</p>
+            <div className="flex items-center gap-2">
+              <h3 className={cn(
+                "text-3xl font-black",
+                stat.label === "Status" && "text-emerald-600 uppercase tracking-tight",
+                stat.label === "Capacity" && ""
+              )} style={stat.label === "Capacity" ? { color: "var(--color-accent)" } : {}}>
+                {stat.label === "Status" ? "Optimal" : stat.value}
+              </h3>
+              {stat.label === "Status" && <motion.span className="w-2 h-2 bg-emerald-500 rounded-full" animate={{ scale: [1, 1.5, 1] }} transition={{ duration: 1.5, repeat: Infinity }} />}
+            </div>
+          </motion.div>
+        ))}
+      </motion.div>
 
       <section>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {loading ? (
-            Array(3).fill(0).map((_, i) => (
-              <div key={i} className="h-64 bg-white border border-slate-100 rounded-3xl animate-pulse" />
-            ))
+            <div className="col-span-full flex items-center justify-center min-h-[400px]">
+              <CustomLoader />
+            </div>
           ) : activeTab === "quizzes" ? (
              quizzes.length === 0 ? (
                 <div className="col-span-full py-24 text-center bg-white rounded-[3rem] border-2 border-dashed border-slate-100">
