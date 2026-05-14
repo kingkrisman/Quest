@@ -136,6 +136,7 @@ export function CreateQuiz() {
         const { data, error } = await supabase.from('quizzes').insert({
           creator_email: user.email,
           title: quizData.title,
+          description: quizData.description || "",
           questions: quizData.questions,
         }).select();
         if (error) {
@@ -145,10 +146,19 @@ export function CreateQuiz() {
         alert("Quiz saved successfully!");
         navigate("/dashboard");
       } else {
+        if (!flashcardData?.title) {
+          alert("Please give your flashcard set a title.");
+          return;
+        }
+        if (!flashcardData?.cards || flashcardData.cards.length === 0) {
+          alert("Please generate or create at least one flashcard.");
+          return;
+        }
         const { data, error } = await supabase.from('flashcard_sets').insert({
           creator_email: user.email,
-          title: flashcardData?.title,
-          cards: flashcardData?.cards,
+          title: flashcardData.title,
+          description: flashcardData.description || "",
+          cards: flashcardData.cards,
         }).select();
         if (error) {
           console.error("Supabase error:", error);
