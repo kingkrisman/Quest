@@ -6,6 +6,7 @@ import { Sparkles, Save, ArrowLeft, Plus, Trash2, HelpCircle, CheckCircle2, File
 import { motion, AnimatePresence } from "motion/react";
 import { generateQuizFromTopic, generateFlashcards } from "../lib/gemini";
 import { cn } from "../lib/utils";
+import { CustomLoader } from "../components/CustomLoader";
 
 export function CreateQuiz() {
   const { user } = useAuth();
@@ -302,23 +303,48 @@ export function CreateQuiz() {
               </div>
             </div>
 
-            <button
+            <motion.button
               onClick={handleAiGenerate}
               disabled={aiGenerating || (!topic && files.length === 0)}
-              className="w-full py-5 text-white rounded-2xl font-black text-lg transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3 shadow-xl" style={{ backgroundColor: "var(--color-accent)", boxShadow: "0 20px 25px -5px rgba(218, 119, 86, 0.2)" }}
+              whileHover={!aiGenerating && (topic || files.length > 0) ? { scale: 1.02 } : {}}
+              whileTap={!aiGenerating && (topic || files.length > 0) ? { scale: 0.98 } : {}}
+              className="w-full py-5 text-white rounded-2xl font-black text-lg transition-all disabled:opacity-50 flex items-center justify-center gap-3 shadow-xl"
+              style={{ backgroundColor: "var(--color-accent)", boxShadow: "0 20px 25px -5px rgba(218, 119, 86, 0.2)" }}
             >
               {aiGenerating ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ANALYZING SUBJECT MATTER...
-                </>
+                <motion.div
+                  className="flex items-center gap-2"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                >
+                  <motion.div
+                    className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  />
+                  <motion.span
+                    animate={{ opacity: [1, 0.5, 1] }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                  >
+                    ANALYZING SUBJECT MATTER...
+                  </motion.span>
+                </motion.div>
               ) : (
-                <>
-                  <Sparkles className="w-6 h-6" />
+                <motion.div
+                  className="flex items-center gap-2"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                >
+                  <motion.div
+                    animate={{ y: [-2, 2, -2] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    <Sparkles className="w-6 h-6" />
+                  </motion.div>
                   GENERATE {generationType.toUpperCase()} WITH AI
-                </>
+                </motion.div>
               )}
-            </button>
+            </motion.button>
           </div>
         </div>
 

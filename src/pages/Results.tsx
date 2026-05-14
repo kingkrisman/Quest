@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase";
 import { Trophy, Home, Award, Medal, Crown, ArrowRight, RotateCcw } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "../lib/utils";
+import { CustomLoader } from "../components/CustomLoader";
 
 export function Results() {
   const { sessionId } = useParams();
@@ -47,7 +48,15 @@ export function Results() {
   }, [sessionId]);
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">Loading final scores...</div>;
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="flex items-center justify-center min-h-[calc(100vh-64px)]"
+      >
+        <CustomLoader />
+      </motion.div>
+    );
   }
 
   const podium = participants.slice(0, 3);
