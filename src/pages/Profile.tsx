@@ -1,70 +1,31 @@
-import React, { useState, useRef } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
-import { ArrowLeft, Save, Loader2, Camera } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Check } from "lucide-react";
 import { motion } from "motion/react";
+
+const AVATAR_OPTIONS = [
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=phoenix",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=luna",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=solar",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=nova",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=atlas",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=echo",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=sirius",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=zen",
+];
 
 export function Profile() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [displayName, setDisplayName] = useState(user?.user_metadata?.displayName || user?.email?.split("@")[0] || "");
-  const [photoUrl, setPhotoUrl] = useState(user?.user_metadata?.photoURL || `https://ui-avatars.com/api/?name=${user?.email}`);
+  const [photoUrl, setPhotoUrl] = useState(user?.user_metadata?.photoURL || AVATAR_OPTIONS[0]);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [uploading, setUploading] = useState(false);
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-
-    // Validate file
-    if (!file.type.startsWith("image/")) {
-      alert("Please select a valid image file");
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      alert("File size must be less than 5MB");
-      return;
-    }
-
-    setUploading(true);
-    try {
-      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-      const fileName = `${user.id}-${Date.now()}.${ext}`;
-
-      // Upload file
-      const { error: uploadError } = await supabase.storage
-        .from("profile-photos")
-        .upload(fileName, file, { upsert: true });
-
-      if (uploadError) {
-        console.error("Upload error details:", uploadError);
-        throw new Error(uploadError.message || "Storage upload failed");
-      }
-
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from("profile-photos")
-        .getPublicUrl(fileName);
-
-      if (!urlData?.publicUrl) {
-        throw new Error("Failed to generate public URL");
-      }
-
-      setPhotoUrl(urlData.publicUrl);
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      console.error("Photo upload failed:", errorMsg);
-      alert(`Photo upload failed: ${errorMsg}`);
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
+  const handleAvatarSelect = (avatarUrl: string) => {
+    setPhotoUrl(avatarUrl);
   };
 
   const handleSave = async () => {
@@ -146,45 +107,54 @@ export function Profile() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2 }}
-            className="flex flex-col items-center space-y-4"
+            className="flex flex-col items-center space-y-6"
           >
-            <div className="relative group">
-              <motion.img
-                src={photoUrl}
-                alt={displayName}
-                whileHover={{ scale: 1.05 }}
-                className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-2xl sm:rounded-3xl object-cover border-4 border-slate-100 shadow-lg"
-              />
-              <motion.button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-                className="absolute bottom-0 right-0 p-2 sm:p-3 bg-white rounded-full shadow-lg border-4 border-slate-100 hover:bg-gray-50 transition-all"
-                style={{ backgroundColor: "var(--color-accent)", color: "white" }}
-              >
-                {uploading ? (
-                  <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
-                ) : (
-                  <Camera className="w-4 h-4 sm:w-5 sm:h-5" />
-                )}
-              </motion.button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handlePhotoUpload}
-                className="hidden"
-              />
-            </div>
+            <motion.img
+              src={photoUrl}
+              alt={displayName}
+              whileHover={{ scale: 1.05 }}
+              className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-2xl sm:rounded-3xl object-cover border-4 border-slate-100 shadow-lg"
+            />
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3 }}
               className="text-[8px] sm:text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest"
             >
-              Click camera to update photo
+              Select Your Avatar
             </motion.p>
+
+            {/* Avatar Grid */}
+            <div className="grid grid-cols-4 gap-3 sm:gap-4 w-full max-w-xs">
+              {AVATAR_OPTIONS.map((avatar, index) => (
+                <motion.button
+                  key={avatar}
+                  onClick={() => handleAvatarSelect(avatar)}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 + index * 0.05 }}
+                  className={`relative rounded-xl sm:rounded-2xl overflow-hidden border-2 transition-all ${
+                    photoUrl === avatar
+                      ? "border-accent shadow-lg"
+                      : "border-slate-200 hover:border-slate-300"
+                  }`}
+                  style={
+                    photoUrl === avatar
+                      ? { borderColor: "var(--color-accent)", boxShadow: "0 10px 15px -3px rgba(218, 119, 86, 0.2)" }
+                      : {}
+                  }
+                >
+                  <img src={avatar} alt={`Avatar ${index + 1}`} className="w-full h-full object-cover" />
+                  {photoUrl === avatar && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                      <Check className="w-5 h-5 text-white" style={{ color: "var(--color-accent)" }} />
+                    </div>
+                  )}
+                </motion.button>
+              ))}
+            </div>
           </motion.div>
 
           {/* Form Fields */}
