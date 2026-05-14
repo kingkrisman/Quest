@@ -122,7 +122,7 @@ export function CreateQuiz() {
   const handleSubmit = async (e: any) => {
     e.preventDefault();
     if (!user) {
-      alert("You must enter your email to save a quiz.");
+      alert("You must sign in to save a quiz.");
       return;
     }
     if (!quizData.title || quizData.questions.some(q => !q.text || q.options.some(o => !o))) {
@@ -134,8 +134,9 @@ export function CreateQuiz() {
     try {
       if (generationType === "quiz") {
         const { data, error } = await supabase.from('quizzes').insert({
-          creator_email: user.email,
+          creator_id: user.id,
           title: quizData.title,
+          description: quizData.description || null,
           questions: quizData.questions,
         }).select();
         if (error) {
@@ -145,10 +146,19 @@ export function CreateQuiz() {
         alert("Quiz saved successfully!");
         navigate("/dashboard");
       } else {
+        if (!flashcardData?.title) {
+          alert("Please give your flashcard set a title.");
+          return;
+        }
+        if (!flashcardData?.cards || flashcardData.cards.length === 0) {
+          alert("Please generate or create at least one flashcard.");
+          return;
+        }
         const { data, error } = await supabase.from('flashcard_sets').insert({
-          creator_email: user.email,
-          title: flashcardData?.title,
-          cards: flashcardData?.cards,
+          creator_id: user.id,
+          title: flashcardData.title,
+          description: flashcardData.description || null,
+          cards: flashcardData.cards,
         }).select();
         if (error) {
           console.error("Supabase error:", error);

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
@@ -176,7 +176,7 @@ export function Profile() {
                 placeholder="Enter your name"
                 whileFocus={{ scale: 1.01 }}
                 className="w-full px-4 sm:px-5 md:px-6 py-3 sm:py-4 md:py-4 bg-slate-50 border border-slate-200 rounded-lg sm:rounded-xl md:rounded-2xl focus:ring-2 focus:outline-none transition-all text-base sm:text-lg md:text-lg font-bold"
-                style={{ "--focus-ring": "var(--color-accent)" } as React.CSSProperties}
+                style={{ "--focus-ring": "var(--color-accent)" } as CSSProperties}
               />
             </motion.div>
 
