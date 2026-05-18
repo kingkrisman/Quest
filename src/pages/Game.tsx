@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase, handleSupabaseError, OperationType } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
-import { Trophy, Users, ArrowRight, Check, X, Loader2, Award, Sparkles } from "lucide-react";
+import { Trophy, Users, ArrowRight, Check, X, Loader2, Award, Sparkles, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "../lib/utils";
 import { CustomLoader } from "../components/CustomLoader";
@@ -18,6 +18,7 @@ export function Game() {
   const [responses, setResponses] = useState<any[]>([]);
   const [myResponse, setMyResponse] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [rankingsCollapsed, setRankingsCollapsed] = useState(false);
 
   useEffect(() => {
     if (!sessionId || !user) return;
@@ -308,58 +309,78 @@ export function Game() {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="fixed right-4 bottom-4 bg-white rounded-[3rem] p-4 border border-slate-200 shadow-lg flex flex-col h-auto max-h-96 w-80 lg:w-96"
+        className={cn(
+          "fixed right-4 bottom-4 bg-white rounded-[3rem] border border-slate-200 shadow-lg flex flex-col transition-all",
+          rankingsCollapsed ? "p-4 w-80 lg:w-96" : "p-4 h-auto max-h-96 w-80 lg:w-96"
+        )}
       >
         <div className="p-6 border-b border-slate-100 flex items-center justify-between">
           <h3 className="text-xl font-black text-slate-900 flex items-center gap-3">
             <Award className="w-6 h-6" style={{ color: "var(--color-accent)" }} />
             Live Rankings
           </h3>
-          <div className="flex items-center gap-2">
+          <button
+            onClick={() => setRankingsCollapsed(!rankingsCollapsed)}
+            className="flex items-center gap-2 hover:bg-slate-100 rounded-lg p-2 transition-colors"
+            aria-label={rankingsCollapsed ? "Expand rankings" : "Collapse rankings"}
+          >
             <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Real-time</span>
-          </div>
+            <motion.div animate={{ rotate: rankingsCollapsed ? 180 : 0 }} transition={{ duration: 0.3 }}>
+              <ChevronDown className="w-4 h-4 text-slate-400" />
+            </motion.div>
+          </button>
         </div>
 
-        <div className="p-2 space-y-2 overflow-y-auto max-h-[300px] scrollbar-hide">
-          {participants.map((player, idx) => (
+        <AnimatePresence>
+          {!rankingsCollapsed && (
             <motion.div
-              key={player.id}
-              layout
-              className={cn(
-                "flex items-center gap-4 p-4 rounded-3xl transition-all border",
-                idx === 0
-                  ? "bg-slate-900 border-slate-900 text-white shadow-xl"
-                  : (player.user_id === user?.id ? "bg-gray-100 border-gray-200" : "bg-slate-50 border-transparent hover:border-slate-200")
-              )}
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="p-2 space-y-2 overflow-y-auto max-h-[300px] scrollbar-hide"
             >
-              <div className={cn(
-                "w-8 h-8 rounded-xl font-black text-xs flex items-center justify-center shrink-0",
-                idx === 0 ? "bg-white/20" : "bg-white text-slate-400"
-              )}>
-                {idx + 1}
-              </div>
-              <img 
-                src={player.photo_url || `https://ui-avatars.com/api/?name=${player.display_name}`} 
-                className="w-10 h-10 rounded-xl border-2 border-white ring-1 ring-slate-100"
-                alt={player.display_name}
-              />
-              <div className="flex-1 min-w-0">
-                <p className={cn("text-sm font-bold truncate", idx === 0 ? "text-white" : "text-slate-900")}>
-                  {player.display_name}
-                </p>
-                {player.user_id === user?.id && (
-                  <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: "var(--color-accent)" }}>You</span>
-                )}
-              </div>
-              <div className="text-right shrink-0">
-                <p className={cn("text-lg font-black font-mono leading-none", idx === 0 ? "text-white" : "text-slate-900")}>
-                  {player.score.toLocaleString()}
-                </p>
-              </div>
+              {participants.map((player, idx) => (
+                <motion.div
+                  key={player.id}
+                  layout
+                  className={cn(
+                    "flex items-center gap-4 p-4 rounded-3xl transition-all border",
+                    idx === 0
+                      ? "bg-slate-900 border-slate-900 text-white shadow-xl"
+                      : (player.user_id === user?.id ? "bg-gray-100 border-gray-200" : "bg-slate-50 border-transparent hover:border-slate-200")
+                  )}
+                >
+                  <div className={cn(
+                    "w-8 h-8 rounded-xl font-black text-xs flex items-center justify-center shrink-0",
+                    idx === 0 ? "bg-white/20" : "bg-white text-slate-400"
+                  )}>
+                    {idx + 1}
+                  </div>
+                  <img
+                    src={player.photo_url || `https://ui-avatars.com/api/?name=${player.display_name}`}
+                    className="w-10 h-10 rounded-xl border-2 border-white ring-1 ring-slate-100"
+                    alt={player.display_name}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className={cn("text-sm font-bold truncate", idx === 0 ? "text-white" : "text-slate-900")}>
+                      {player.display_name}
+                    </p>
+                    {player.user_id === user?.id && (
+                      <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: "var(--color-accent)" }}>You</span>
+                    )}
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className={cn("text-lg font-black font-mono leading-none", idx === 0 ? "text-white" : "text-slate-900")}>
+                      {player.score.toLocaleString()}
+                    </p>
+                  </div>
+                </motion.div>
+              ))}
             </motion.div>
-          ))}
-        </div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </div>
   );
