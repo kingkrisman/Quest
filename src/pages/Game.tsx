@@ -39,8 +39,15 @@ export function Game() {
 
         if (!quiz || quiz.id !== data?.quiz_id) {
           const { data: quizData } = await supabase.from('quizzes').select('*').eq('id', data?.quiz_id).single();
-          if (quizData) {
-            setQuiz(quizData);
+          if (quizData && quizData.questions && quizData.questions.length > 0) {
+            const processedQuiz = {
+              ...quizData,
+              questions: quizData.questions.map((q: any) => ({
+                ...q,
+                timeLimit: q.timeLimit || 20
+              }))
+            };
+            setQuiz(processedQuiz);
           }
         }
 
@@ -64,8 +71,15 @@ export function Game() {
       }
       setSession(data);
       const { data: quizData } = await supabase.from('quizzes').select('*').eq('id', data.quiz_id).single();
-      if (quizData) {
-        setQuiz(quizData);
+      if (quizData && quizData.questions && quizData.questions.length > 0) {
+        const processedQuiz = {
+          ...quizData,
+          questions: quizData.questions.map((q: any) => ({
+            ...q,
+            timeLimit: q.timeLimit || 20
+          }))
+        };
+        setQuiz(processedQuiz);
       }
       setLoading(false);
     });
