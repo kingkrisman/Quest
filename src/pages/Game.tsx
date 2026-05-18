@@ -226,9 +226,10 @@ export function Game() {
                {participants.slice(0, 3).map((p, i) => (
                  <motion.img
                    key={i}
-                   src={p.photo_url}
+                   src={p.photo_url || `https://ui-avatars.com/api/?name=${p.display_name}`}
                    whileHover={{ scale: 1.15, zIndex: 10 }}
                    className="w-6 h-6 rounded-full border-2 border-white ring-1 ring-slate-100 transition-all"
+                   alt={p.display_name}
                  />
                ))}
              </div>
@@ -310,8 +311,9 @@ export function Game() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         className={cn(
-          "fixed right-4 bottom-4 bg-white rounded-[3rem] border border-slate-200 shadow-lg flex flex-col transition-all",
-          rankingsCollapsed ? "p-4 w-80 lg:w-96" : "p-4 h-auto max-h-96 w-80 lg:w-96"
+          "fixed bg-white rounded-[3rem] border border-slate-200 shadow-lg flex flex-col transition-all",
+          "bottom-4 right-4 sm:bottom-4 sm:right-4 w-72 sm:w-80 lg:w-96",
+          rankingsCollapsed ? "p-4" : "p-4 h-auto max-h-96"
         )}
       >
         <div className="p-6 border-b border-slate-100 flex items-center justify-between">
