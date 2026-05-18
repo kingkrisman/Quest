@@ -270,7 +270,7 @@ export function Game() {
             >
               <Clock className="w-5 h-5" />
             </motion.div>
-            <span className="text-2xl font-black tabular-nums">{timeLeft}:00</span>
+            <span className="text-2xl font-black tabular-nums">{String(Math.floor(timeLeft / 60)).padStart(2, '0')}:{String(timeLeft % 60).padStart(2, '0')}</span>
           </motion.div>
           <motion.div
             className="hidden lg:flex items-center gap-3 px-4 py-2 border border-slate-100 rounded-xl bg-slate-50"
