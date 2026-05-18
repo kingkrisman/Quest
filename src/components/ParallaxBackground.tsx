@@ -38,10 +38,9 @@ export function ParallaxBackground() {
           backgroundColor: "rgba(218, 119, 86, 0.15)",
           left: "50%",
           top: "50%",
-          x: "-50%",
-          y: "-50%",
-          translateX: blob1X,
-          translateY: blob1Y,
+          transform: "translate(-50%, -50%)",
+          x: blob1X,
+          y: blob1Y,
         }}
       />
 
@@ -52,8 +51,8 @@ export function ParallaxBackground() {
           backgroundColor: "rgba(251, 146, 60, 0.08)",
           right: "-100px",
           bottom: "-100px",
-          translateX: blob2X,
-          translateY: blob2Y,
+          x: blob2X,
+          y: blob2Y,
         }}
       />
 
@@ -64,8 +63,8 @@ export function ParallaxBackground() {
           backgroundColor: "rgba(251, 146, 60, 0.05)",
           left: "-150px",
           top: "-100px",
-          translateX: blob3X,
-          translateY: blob3Y,
+          x: blob3X,
+          y: blob3Y,
         }}
       />
     </div>
