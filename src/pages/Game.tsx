@@ -17,11 +17,7 @@ export function Game() {
   const [participants, setParticipants] = useState<any[]>([]);
   const [responses, setResponses] = useState<any[]>([]);
   const [myResponse, setMyResponse] = useState<any>(null);
-  const [timeLeft, setTimeLeft] = useState(0);
-  const [showResults, setShowResults] = useState(false);
   const [loading, setLoading] = useState(true);
-
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!sessionId || !user) return;
@@ -121,40 +117,6 @@ export function Game() {
     };
   }, [sessionId, user, session?.host_id, session?.current_question_index]);
 
-  useEffect(() => {
-    if (session?.status === "in-progress" && quiz && session.current_question_index >= 0 && quiz.questions && quiz.questions.length > session.current_question_index) {
-      const q = quiz.questions[session.current_question_index];
-
-      if (!session.question_start_time || !q) {
-        setTimeLeft(q?.timeLimit || 20);
-        return;
-      }
-
-      const startTime = new Date(session.question_start_time).getTime();
-      const timeLimit = q?.timeLimit || 20;
-      const expiry = startTime + (timeLimit * 1000);
-
-      if (timerRef.current) clearInterval(timerRef.current);
-
-      const updateTimer = () => {
-        const now = Date.now();
-        const diff = Math.max(0, Math.ceil((expiry - now) / 1000));
-        setTimeLeft(diff);
-
-        if (diff === 0 && !myResponse) {
-          setShowResults(true);
-          if (timerRef.current) clearInterval(timerRef.current);
-        }
-      };
-
-      updateTimer();
-      timerRef.current = setInterval(updateTimer, 1000);
-    }
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [session?.current_question_index, session?.question_start_time, quiz, myResponse]);
 
   const handleSelectOption = async (optionIndex: number) => {
     if (!session || !quiz || showResults || myResponse) return;
@@ -261,10 +223,10 @@ export function Game() {
             <span className="text-[10px] font-black uppercase tracking-widest leading-none mb-1" style={{ color: "var(--color-accent)" }}>State</span>
             <div className="flex items-center gap-2">
               <span className="text-sm font-black text-slate-900 uppercase">
-                {showResults ? "Commit Stage" : "Reviewing Story"}
+                Reviewing Story
               </span>
               <motion.div
-                className={cn("w-1.5 h-1.5 rounded-full", showResults ? "bg-rose-500" : "bg-indigo-500")}
+                className="w-1.5 h-1.5 rounded-full bg-indigo-500"
                 animate={{ scale: [1, 1.5, 1] }}
                 transition={{ duration: 1.5, repeat: Infinity }}
               />
@@ -273,24 +235,6 @@ export function Game() {
         </motion.div>
 
         <motion.div className="flex items-center gap-6">
-          <motion.div
-            className={cn(
-              "flex items-center gap-4 px-6 py-3 rounded-2xl border-2 font-mono transition-all",
-              timeLeft <= 5
-                ? "bg-rose-50 border-rose-200 text-rose-600 scale-110 shadow-lg shadow-rose-100"
-                : "bg-white border-slate-100 text-slate-900"
-            )}
-            animate={timeLeft <= 5 ? { scale: [1, 1.1, 1] } : {}}
-            transition={{ duration: 0.5, repeat: Infinity }}
-          >
-            <motion.div
-              animate={timeLeft <= 5 ? { rotate: 360 } : {}}
-              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-            >
-              <Clock className="w-5 h-5" />
-            </motion.div>
-            <span className="text-2xl font-black tabular-nums">{String(Math.floor(timeLeft / 60)).padStart(2, '0')}:{String(timeLeft % 60).padStart(2, '0')}</span>
-          </motion.div>
           <motion.div
             className="hidden lg:flex items-center gap-3 px-4 py-2 border border-slate-100 rounded-xl bg-slate-50"
             whileHover={{ scale: 1.05 }}
