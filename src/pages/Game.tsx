@@ -122,19 +122,25 @@ export function Game() {
   }, [sessionId, user, session?.host_id, session?.current_question_index]);
 
   useEffect(() => {
-    if (session?.status === "in-progress" && quiz && session.current_question_index >= 0) {
+    if (session?.status === "in-progress" && quiz && session.current_question_index >= 0 && quiz.questions && quiz.questions.length > session.current_question_index) {
       const q = quiz.questions[session.current_question_index];
+
+      if (!session.question_start_time || !q) {
+        setTimeLeft(q?.timeLimit || 20);
+        return;
+      }
+
       const startTime = new Date(session.question_start_time).getTime();
       const timeLimit = q?.timeLimit || 20;
       const expiry = startTime + (timeLimit * 1000);
-      
+
       if (timerRef.current) clearInterval(timerRef.current);
-      
+
       const updateTimer = () => {
         const now = Date.now();
         const diff = Math.max(0, Math.ceil((expiry - now) / 1000));
         setTimeLeft(diff);
-        
+
         if (diff === 0) {
           setShowResults(true);
           if (timerRef.current) clearInterval(timerRef.current);
