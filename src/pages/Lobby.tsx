@@ -118,7 +118,7 @@ export function Lobby() {
     );
   }
 
-  const isHost = session?.hostId === user?.uid;
+  const isHost = session?.host_id === user?.id;
 
   return (
     <div className="min-h-[calc(100vh-64px)] relative overflow-hidden flex flex-col items-center justify-center p-4" style={{ backgroundColor: "var(--color-accent)" }}>
@@ -201,13 +201,13 @@ export function Lobby() {
                     exit={{ scale: 0.8, opacity: 0 }}
                     className="flex items-center gap-3 bg-white/5 p-3 rounded-2xl border border-white/5"
                   >
-                    <img 
-                      src={player.photoURL || `https://ui-avatars.com/api/?name=${player.displayName}`} 
+                    <img
+                      src={player.photo_url || `https://ui-avatars.com/api/?name=${player.display_name}`}
                       className="w-10 h-10 rounded-xl"
-                      alt={player.displayName}
+                      alt={player.display_name}
                     />
-                    <span className="text-white font-bold">{player.displayName}</span>
-                    {player.uid === user?.uid && <span className="ml-auto text-[10px] font-bold bg-white/10 px-2 py-1 rounded" style={{ color: "rgba(255, 255, 255, 0.7)" }}>YOU</span>}
+                    <span className="text-white font-bold">{player.display_name}</span>
+                    {player.user_id === user?.id && <span className="ml-auto text-[10px] font-bold bg-white/10 px-2 py-1 rounded" style={{ color: "rgba(255, 255, 255, 0.7)" }}>YOU</span>}
                   </motion.div>
                 ))}
               </AnimatePresence>
