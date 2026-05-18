@@ -141,11 +141,9 @@ export function Game() {
         const diff = Math.max(0, Math.ceil((expiry - now) / 1000));
         setTimeLeft(diff);
 
-        if (diff === 0) {
+        if (diff === 0 && !myResponse) {
           setShowResults(true);
           if (timerRef.current) clearInterval(timerRef.current);
-        } else {
-          setShowResults(false);
         }
       };
 
@@ -156,7 +154,7 @@ export function Game() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [session?.current_question_index, session?.question_start_time, quiz]);
+  }, [session?.current_question_index, session?.question_start_time, quiz, myResponse]);
 
   const handleSelectOption = async (optionIndex: number) => {
     if (!session || !quiz || showResults || myResponse) return;
@@ -219,7 +217,7 @@ export function Game() {
     }
   };
 
-  if (loading || !session || !quiz) {
+  if (loading || !session || !quiz || !quiz.questions || quiz.questions.length === 0 || session.current_question_index < 0 || session.current_question_index >= quiz.questions.length) {
     return (
       <motion.div
         initial={{ opacity: 0 }}
