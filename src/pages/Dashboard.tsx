@@ -2,9 +2,9 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
-import { Plus, Play, Clock, BookOpen, ChevronRight, LayoutGrid, List, Zap } from "lucide-react";
+import { Plus, Play, Clock, BookOpen, ChevronRight, LayoutGrid, List, Zap, Beaker } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { cn, formatDate, generatePin } from "../lib/utils";
+import { cn, formatDate, generatePin, createTestQuiz } from "../lib/utils";
 import { CustomLoader } from "../components/CustomLoader";
 
 export function Dashboard() {
@@ -12,6 +12,7 @@ export function Dashboard() {
   const [quizzes, setQuizzes] = useState<any[]>([]);
   const [flashcardSets, setFlashcardSets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [creatingTest, setCreatingTest] = useState(false);
   const [activeTab, setActiveTab] = useState<"quizzes" | "flashcards">("quizzes");
   const navigate = useNavigate();
 
@@ -59,6 +60,21 @@ export function Dashboard() {
     } catch (err) {
       console.error(err);
       setLoading(false);
+    }
+  };
+
+  const handleCreateTestQuiz = async () => {
+    if (!user) return;
+    setCreatingTest(true);
+    try {
+      const newQuiz = await createTestQuiz(user.id);
+      if (newQuiz) {
+        setQuizzes([...quizzes, newQuiz]);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setCreatingTest(false);
     }
   };
 
@@ -142,7 +158,17 @@ export function Dashboard() {
           initial={{ opacity: 0, x: 10 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.3 }}
+          className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto"
         >
+          <button
+            onClick={handleCreateTestQuiz}
+            disabled={creatingTest}
+            className="inline-flex items-center justify-center gap-3 px-6 py-3.5 text-white rounded-2xl font-black shadow-xl transition-all active:scale-95 hover:shadow-2xl disabled:opacity-50"
+            style={{ backgroundColor: "rgba(218, 119, 86, 0.7)" }}
+          >
+            <Beaker className="w-5 h-5" />
+            {creatingTest ? "CREATING..." : "TEST QUIZ"}
+          </button>
           <Link
             to="/create"
             className="inline-flex items-center justify-center gap-3 px-8 py-3.5 text-white rounded-2xl font-black shadow-xl transition-all active:scale-95 sm:w-auto w-full hover:shadow-2xl"
