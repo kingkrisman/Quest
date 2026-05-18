@@ -111,7 +111,8 @@ export function Game() {
     if (session?.status === "in-progress" && quiz && session.current_question_index >= 0) {
       const q = quiz.questions[session.current_question_index];
       const startTime = new Date(session.question_start_time).getTime();
-      const expiry = startTime + (q.timeLimit * 1000);
+      const timeLimit = q?.timeLimit || 20;
+      const expiry = startTime + (timeLimit * 1000);
       
       if (timerRef.current) clearInterval(timerRef.current);
       
