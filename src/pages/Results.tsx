@@ -85,12 +85,12 @@ export function Results() {
               transition={{ delay: 0.2 }}
               className="flex flex-col items-center space-y-4 mb-4"
             >
-              <img src={podium[1].photoURL} className="w-20 h-20 rounded-full border-4 border-gray-300 shadow-xl" />
+              <img src={podium[1].photo_url} className="w-20 h-20 rounded-full border-4 border-gray-300 shadow-xl" />
               <div className="w-24 sm:w-32 h-40 bg-gray-200 rounded-t-3xl shadow-xl flex flex-col items-center justify-start py-6 text-gray-600">
                 <span className="text-3xl font-black">2</span>
                 <span className="text-xs font-black uppercase mt-1">Silver</span>
               </div>
-              <p className="font-bold text-gray-700 text-center line-clamp-1">{podium[1].displayName}</p>
+              <p className="font-bold text-gray-700 text-center line-clamp-1">{podium[1].display_name}</p>
               <span className="font-black" style={{ color: "var(--color-accent)" }}>{podium[1].score}</span>
             </motion.div>
           )}
@@ -104,13 +104,13 @@ export function Results() {
             >
               <div className="relative">
                 <Crown className="w-12 h-12 text-yellow-400 absolute -top-10 left-1/2 -translate-x-1/2 animate-bounce" />
-                <img src={podium[0].photoURL} className="w-32 h-32 rounded-full border-4 border-yellow-400 shadow-2xl relative z-10" />
+                <img src={podium[0].photo_url} className="w-32 h-32 rounded-full border-4 border-yellow-400 shadow-2xl relative z-10" />
               </div>
               <div className="w-32 sm:w-44 h-56 bg-yellow-400 rounded-t-3xl shadow-2xl flex flex-col items-center justify-start py-8 text-yellow-900">
                 <span className="text-5xl font-black">1</span>
                 <span className="text-sm font-black uppercase mt-1">Winner</span>
               </div>
-              <p className="font-black text-gray-900 text-xl text-center line-clamp-1">{podium[0].displayName}</p>
+              <p className="font-black text-gray-900 text-xl text-center line-clamp-1">{podium[0].display_name}</p>
               <span className="font-black text-2xl" style={{ color: "var(--color-accent)" }}>{podium[0].score}</span>
             </motion.div>
           )}
@@ -123,12 +123,12 @@ export function Results() {
               transition={{ delay: 0.4 }}
               className="flex flex-col items-center space-y-4 mb-2"
             >
-              <img src={podium[2].photoURL} className="w-16 h-16 rounded-full border-4 border-orange-400 shadow-xl" />
+              <img src={podium[2].photo_url} className="w-16 h-16 rounded-full border-4 border-orange-400 shadow-xl" />
               <div className="w-24 sm:w-28 h-32 bg-orange-200 rounded-t-3xl shadow-xl flex flex-col items-center justify-start py-4 text-orange-700">
                 <span className="text-2xl font-black">3</span>
                 <span className="text-xs font-black uppercase mt-1">Bronze</span>
               </div>
-              <p className="font-bold text-gray-700 text-center line-clamp-1">{podium[2].displayName}</p>
+              <p className="font-bold text-gray-700 text-center line-clamp-1">{podium[2].display_name}</p>
               <span className="font-black" style={{ color: "var(--color-accent)" }}>{podium[2].score}</span>
             </motion.div>
           )}
@@ -142,8 +142,8 @@ export function Results() {
               {others.map((player, idx) => (
                 <div key={player.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl">
                   <span className="w-6 font-bold text-gray-400">{idx + 4}</span>
-                  <img src={player.photoURL} className="w-10 h-10 rounded-xl" />
-                  <span className="font-bold text-gray-900 flex-1">{player.displayName}</span>
+                  <img src={player.photo_url} className="w-10 h-10 rounded-xl" />
+                  <span className="font-bold text-gray-900 flex-1">{player.display_name}</span>
                   <span className="font-black text-gray-900">{player.score} pts</span>
                 </div>
               ))}

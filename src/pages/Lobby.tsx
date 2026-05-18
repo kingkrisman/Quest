@@ -25,8 +25,8 @@ export function Lobby() {
         await supabase.from('participants').upsert({
           session_id: sessionId,
           user_id: user.id,
-          display_name: user.displayName,
-          photo_url: user.photoURL,
+          display_name: user.user_metadata?.displayName || user.email?.split("@")[0] || "Anonymous",
+          photo_url: user.user_metadata?.photoURL || `https://ui-avatars.com/api/?name=${user.email}`,
           score: 0,
           last_answer_correct: false,
         });
@@ -95,6 +95,7 @@ export function Lobby() {
     } catch (err) {
       handleSupabaseError(err, OperationType.UPDATE, `sessions`);
       setStarting(false);
+      return;
     }
   };
 
