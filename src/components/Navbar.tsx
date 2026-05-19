@@ -136,7 +136,7 @@ export function Navbar() {
             Live Sync
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-1 sm:gap-4">
             {user ? (
               <>
                 <Link
@@ -147,11 +147,11 @@ export function Navbar() {
                 </Link>
                 <Link
                   to="/achievements"
-                  className="hidden sm:flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400 hover:opacity-70 transition-opacity flex-shrink-0"
+                  className="flex items-center gap-1 sm:gap-2 text-xs font-bold uppercase tracking-widest text-slate-400 hover:opacity-70 transition-opacity flex-shrink-0"
                   title="Badges & Achievements"
                 >
                   <Trophy className="w-4 h-4" />
-                  Badges
+                  <span className="hidden sm:inline">Badges</span>
                 </Link>
                 <div className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-4 border-l border-slate-200">
                   <div className="flex-col items-end hidden sm:flex">

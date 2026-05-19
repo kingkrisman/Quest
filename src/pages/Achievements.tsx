@@ -24,13 +24,16 @@ export function Achievements() {
   const [stats, setStats] = useState({ quizzesCompleted: 0, perfectScores: 0, streak: 0 });
 
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
       fetchAchievements();
     }
-  }, [user]);
+  }, [user?.id]);
 
   const fetchAchievements = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       // Fetch user stats
