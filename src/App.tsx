@@ -9,6 +9,7 @@ import { Game } from "./pages/Game";
 import { Results } from "./pages/Results";
 import { Flashcards } from "./pages/Flashcards";
 import { Profile } from "./pages/Profile";
+import { Achievements } from "./pages/Achievements";
 
 function AppRoutes() {
   const { user, loading } = useAuth();
@@ -54,6 +55,10 @@ function AppRoutes() {
           <Route
             path="/profile"
             element={user ? <Profile /> : <Navigate to="/" />}
+          />
+          <Route
+            path="/achievements"
+            element={user ? <Achievements /> : <Navigate to="/" />}
           />
         </Routes>
       </main>

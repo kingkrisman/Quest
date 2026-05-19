@@ -24,19 +24,23 @@ export function Achievements() {
   const [stats, setStats] = useState({ quizzesCompleted: 0, perfectScores: 0, streak: 0 });
 
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
       fetchAchievements();
     }
-  }, [user]);
+  }, [user?.id]);
 
   const fetchAchievements = async () => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       // Fetch user stats
       const { data: scores } = await supabase
         .from("quiz_scores")
         .select("score, max_score, created_at")
-        .eq("user_id", user?.id);
+        .eq("user_id", user.id);
 
       const quizzesCompleted = scores?.length || 0;
       const perfectScores = scores?.filter((s: any) => s.score === s.max_score).length || 0;
