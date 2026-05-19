@@ -30,13 +30,14 @@ export function Achievements() {
   }, [user]);
 
   const fetchAchievements = async () => {
+    if (!user?.id) return;
     setLoading(true);
     try {
       // Fetch user stats
       const { data: scores } = await supabase
         .from("quiz_scores")
         .select("score, max_score, created_at")
-        .eq("user_id", user?.id);
+        .eq("user_id", user.id);
 
       const quizzesCompleted = scores?.length || 0;
       const perfectScores = scores?.filter((s: any) => s.score === s.max_score).length || 0;
