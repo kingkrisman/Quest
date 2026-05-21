@@ -64,12 +64,12 @@ export const flashcardSchema = {
 export async function generateQuizFromTopic(topicAndContent: string | { mimeType: string, data: string }[], count: number = 5, globalTimeLimit: number = 20) {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY || (process.env as any).GEMINI_API_KEY;
   if (!apiKey || apiKey.trim() === "") {
-    throw new Error("Gemini API key is not configured. Please set the VITE_GEMINI_API_KEY environment variable to use AI features.");
+    throw new Error("AI generation is not available. Please manually create your quiz or flashcards using the form below.");
   }
 
   const ai = getAIInstance();
   if (!ai) {
-    throw new Error("Failed to initialize Gemini API. Please check your API key.");
+    throw new Error("AI generation is temporarily unavailable. You can still manually create quizzes using the form below.");
   }
 
   let parts: any[] = [];
@@ -115,12 +115,12 @@ export async function generateQuizFromTopic(topicAndContent: string | { mimeType
 export async function generateFlashcards(topicAndContent: string | { mimeType: string, data: string }[], count: number = 10) {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY || (process.env as any).GEMINI_API_KEY;
   if (!apiKey || apiKey.trim() === "") {
-    throw new Error("Gemini API key is not configured. Please set the VITE_GEMINI_API_KEY environment variable to use AI features.");
+    throw new Error("AI generation is not available. Please manually create your flashcards using the form below.");
   }
 
   const ai = getAIInstance();
   if (!ai) {
-    throw new Error("Failed to initialize Gemini API. Please check your API key.");
+    throw new Error("AI generation is temporarily unavailable. You can still manually create flashcards using the form below.");
   }
 
   let parts: any[] = [];
