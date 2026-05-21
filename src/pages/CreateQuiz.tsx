@@ -89,7 +89,7 @@ export function CreateQuiz() {
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Failed to generate content";
       console.error(err);
-      alert(errorMsg);
+      alert("AI generation failed: " + errorMsg + "\n\nYou can still manually create quizzes/flashcards below.");
     } finally {
       setAiGenerating(false);
     }
