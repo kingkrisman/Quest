@@ -87,8 +87,9 @@ export function CreateQuiz() {
         });
       }
     } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Failed to generate content";
       console.error(err);
-      alert("Failed to generate content. Please try again.");
+      alert(errorMsg);
     } finally {
       setAiGenerating(false);
     }
