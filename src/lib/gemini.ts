@@ -93,7 +93,7 @@ export async function generateQuizFromTopic(topicAndContent: string | { mimeType
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.0-flash",
       contents: { parts },
       config: {
         responseMimeType: "application/json",
@@ -103,8 +103,9 @@ export async function generateQuizFromTopic(topicAndContent: string | { mimeType
 
     return JSON.parse(response.text);
   } catch (err: any) {
-    if (err?.message?.includes("API key")) {
-      throw new Error("Invalid Gemini API key. Please verify your VITE_GEMINI_API_KEY is correct.");
+    const errorMsg = err?.message || String(err);
+    if (errorMsg.includes("API key") || errorMsg.includes("INVALID_ARGUMENT") || errorMsg.includes("403")) {
+      throw new Error("Invalid or unauthorized Gemini API key. Please verify your VITE_GEMINI_API_KEY is valid and has access to the Generative Language API.");
     }
     throw err;
   }
@@ -142,7 +143,7 @@ export async function generateFlashcards(topicAndContent: string | { mimeType: s
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.0-flash",
       contents: { parts },
       config: {
         responseMimeType: "application/json",
@@ -152,8 +153,9 @@ export async function generateFlashcards(topicAndContent: string | { mimeType: s
 
     return JSON.parse(response.text);
   } catch (err: any) {
-    if (err?.message?.includes("API key")) {
-      throw new Error("Invalid Gemini API key. Please verify your VITE_GEMINI_API_KEY is correct.");
+    const errorMsg = err?.message || String(err);
+    if (errorMsg.includes("API key") || errorMsg.includes("INVALID_ARGUMENT") || errorMsg.includes("403")) {
+      throw new Error("Invalid or unauthorized Gemini API key. Please verify your VITE_GEMINI_API_KEY is valid and has access to the Generative Language API.");
     }
     throw err;
   }
