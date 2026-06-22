@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import { Trophy, Home, Award, Medal, Crown, ArrowRight, RotateCcw } from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
+import { Trophy, Home, Award, Medal, Crown, ArrowRight, RotateCcw, Shuffle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "../lib/utils";
 import { CustomLoader } from "../components/CustomLoader";
@@ -9,9 +10,11 @@ import { CustomLoader } from "../components/CustomLoader";
 export function Results() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [participants, setParticipants] = useState<any[]>([]);
   const [quiz, setQuiz] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isCreatingScrambledSession, setIsCreatingScrambledSession] = useState(false);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -46,6 +49,60 @@ export function Results() {
       supabase.removeChannel(participantsChannel);
     };
   }, [sessionId]);
+
+  const handleScrambleAndPlayAgain = async () => {
+    if (!quiz || !user || !sessionId) return;
+
+    setIsCreatingScrambledSession(true);
+
+    try {
+      // Get the original session to get the host info
+      const { data: originalSession } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('id', sessionId)
+        .single();
+
+      if (!originalSession) return;
+
+      // Shuffle questions
+      const shuffledQuestions = [...quiz.questions].sort(() => Math.random() - 0.5);
+
+      // Create new scrambled quiz
+      const { data: newQuiz, error: quizError } = await supabase
+        .from('quizzes')
+        .insert({
+          title: `${quiz.title} (Scrambled)`,
+          questions: shuffledQuestions,
+          created_by: quiz.created_by,
+        })
+        .select()
+        .single();
+
+      if (quizError) throw quizError;
+
+      // Create new session
+      const { data: newSession, error: sessionError } = await supabase
+        .from('sessions')
+        .insert({
+          quiz_id: newQuiz.id,
+          host_id: originalSession.host_id,
+          status: 'active',
+          current_question_index: 0,
+          question_start_time: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (sessionError) throw sessionError;
+
+      // Navigate to the new game
+      navigate(`/game/${newSession.id}`);
+    } catch (error) {
+      console.error('Error creating scrambled session:', error);
+      setIsCreatingScrambledSession(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -152,15 +209,29 @@ export function Results() {
         )}
 
         <div className="flex flex-col sm:flex-row items-center gap-4 pb-20">
-          <Link 
-            to="/dashboard" 
-            className="flex items-center gap-2 px-8 py-4 text-white rounded-2xl font-black shadow-xl transition-all active:scale-95" style={{ backgroundColor: "var(--color-accent)", boxShadow: "0 20px 25px -5px rgba(218, 119, 86, 0.2)" }}
+          <button
+            onClick={handleScrambleAndPlayAgain}
+            disabled={isCreatingScrambledSession}
+            className="flex items-center gap-2 px-8 py-4 text-white rounded-2xl font-black shadow-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed" style={{ backgroundColor: "var(--color-accent)", boxShadow: "0 20px 25px -5px rgba(218, 119, 86, 0.2)" }}
+          >
+            {isCreatingScrambledSession ? (
+              <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity }}>
+                <Shuffle className="w-5 h-5" />
+              </motion.div>
+            ) : (
+              <Shuffle className="w-5 h-5" />
+            )}
+            Scramble & Play Again
+          </button>
+          <Link
+            to="/dashboard"
+            className="flex items-center gap-2 px-8 py-4 bg-indigo-50 text-indigo-900 border-2 border-indigo-100 rounded-2xl font-black transition-all hover:bg-indigo-100 active:scale-95"
           >
             <RotateCcw className="w-5 h-5" />
-            Play Again
+            Play Same Quiz
           </Link>
-          <Link 
-            to="/" 
+          <Link
+            to="/"
             className="flex items-center gap-2 px-8 py-4 bg-white text-gray-900 border-2 border-gray-100 rounded-2xl font-black transition-all hover:bg-gray-50 active:scale-95"
           >
             <Home className="w-5 h-5" />
