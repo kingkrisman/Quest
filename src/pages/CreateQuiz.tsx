@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase, handleSupabaseError, OperationType } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
-import { Sparkles, Save, ArrowLeft, Plus, Trash2, HelpCircle, CheckCircle2, FileUp, FileText, X } from "lucide-react";
+import { Sparkles, Save, ArrowLeft, Plus, Trash2, HelpCircle, CheckCircle2, FileUp, FileText, X, Paste } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { generateQuizFromTopic, generateFlashcards } from "../lib/gemini";
 import { cn } from "../lib/utils";
@@ -28,6 +28,63 @@ export function CreateQuiz() {
   });
 
   const [flashcardData, setFlashcardData] = useState<{ title: string, description: string, cards: { front: string, back: string }[] } | null>(null);
+  const [pastedContent, setPastedContent] = useState("");
+  const [parsingError, setParsingError] = useState("");
+
+  const parseQuizContent = (text: string) => {
+    try {
+      setParsingError("");
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+      const questions: any[] = [];
+      let currentQuestion: any = null;
+
+      for (const line of lines) {
+        // Match question number (1., 2., etc.)
+        const questionMatch = line.match(/^(\d+)\.\s+(.+)/);
+        if (questionMatch) {
+          if (currentQuestion && currentQuestion.options.filter((o: string) => o).length >= 2) {
+            questions.push(currentQuestion);
+          }
+          currentQuestion = {
+            id: String(questions.length + 1),
+            text: questionMatch[2],
+            options: ["", "", "", ""],
+            correctOptionIndex: 0,
+            points: 1000,
+            timeLimit: 20
+          };
+          continue;
+        }
+
+        // Match options (A., B., C., D.)
+        const optionMatch = line.match(/^([A-D])\.\s+(.+)/);
+        if (optionMatch && currentQuestion) {
+          const optionIndex = optionMatch[1].charCodeAt(0) - 65; // A=0, B=1, C=2, D=3
+          currentQuestion.options[optionIndex] = optionMatch[2];
+        }
+      }
+
+      // Add last question
+      if (currentQuestion && currentQuestion.options.filter((o: string) => o).length >= 2) {
+        questions.push(currentQuestion);
+      }
+
+      if (questions.length === 0) {
+        setParsingError("No questions found. Please use format: 1. Question text\nA. Option\nB. Option\nC. Option\nD. Option");
+        return;
+      }
+
+      setQuizData({
+        title: "",
+        description: "",
+        questions
+      });
+      setPastedContent("");
+    } catch (err) {
+      setParsingError("Failed to parse quiz content. Please check the format.");
+      console.error(err);
+    }
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = e.target.files;
@@ -358,6 +415,53 @@ export function CreateQuiz() {
             </motion.button>
           </div>
         </div>
+
+        {/* Paste Quiz Content */}
+        {generationType === "quiz" && (
+          <div className="p-8 rounded-[2.5rem] border shadow-sm" style={{ backgroundColor: "rgba(251, 191, 36, 0.05)", borderColor: "rgba(251, 191, 36, 0.2)", boxShadow: "0 4px 6px -1px rgba(251, 191, 36, 0.1)" }}>
+            <div className="flex items-center gap-2 mb-4">
+              <Paste className="w-5 h-5" style={{ color: "var(--color-accent)" }} />
+              <h3 className="text-sm font-bold uppercase tracking-wider" style={{ color: "var(--color-accent)" }}>Paste Quiz Content</h3>
+            </div>
+            <p className="text-xs text-slate-500 mb-4">Paste your raw quiz questions and options. Format: 1. Question text | A. Option | B. Option | C. Option | D. Option</p>
+            <div className="flex gap-3">
+              <textarea
+                value={pastedContent}
+                onChange={(e) => setPastedContent(e.target.value)}
+                placeholder="1. Conflict originated from the Latin word ______
+A. Conflito
+B. Confligere
+C. Conflictus
+D. Confringo
+
+2. Conflict is mainly a struggle over ______
+A. Entertainment
+B. Values, power and resources
+C. Friendship
+D. Language"
+                className="flex-1 px-4 py-4 bg-white rounded-2xl focus:ring-2 focus:outline-none transition-all placeholder:text-slate-300 font-mono text-sm" style={{ borderColor: "rgba(251, 191, 36, 0.3)", border: "1px solid rgba(251, 191, 36, 0.3)" }}
+                rows={6}
+              />
+              <button
+                onClick={() => parseQuizContent(pastedContent)}
+                disabled={!pastedContent.trim()}
+                className="px-6 py-4 text-white rounded-2xl font-black text-sm transition-all disabled:opacity-50 self-start h-fit"
+                style={{ backgroundColor: "var(--color-accent)" }}
+              >
+                Parse Quiz
+              </button>
+            </div>
+            {parsingError && (
+              <motion.p
+                initial={{ opacity: 0, y: -5 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-3 text-xs font-bold text-rose-500"
+              >
+                {parsingError}
+              </motion.p>
+            )}
+          </div>
+        )}
 
         {/* Generated Content Preview */}
         {generationType === "quiz" ? (
