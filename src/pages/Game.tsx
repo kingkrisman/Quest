@@ -11,7 +11,7 @@ export function Game() {
   const { sessionId } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
-  
+
   const [session, setSession] = useState<any>(null);
   const [quiz, setQuiz] = useState<any>(null);
   const [participants, setParticipants] = useState<any[]>([]);
@@ -19,6 +19,9 @@ export function Game() {
   const [myResponse, setMyResponse] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [rankingsCollapsed, setRankingsCollapsed] = useState(false);
+  const [rankingsPosition, setRankingsPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [showMobileRankings, setShowMobileRankings] = useState(false);
 
   useEffect(() => {
     if (!sessionId || !user) return;
@@ -139,6 +142,22 @@ export function Game() {
     }
   };
 
+  const handleDragStart = (e: MouseEvent) => {
+    setIsDragging(true);
+  };
+
+  const handleDragMove = (e: MouseEvent) => {
+    if (!isDragging) return;
+    setRankingsPosition(prev => ({
+      x: prev.x + e.movementX,
+      y: prev.y + e.movementY
+    }));
+  };
+
+  const handleDragEnd = () => {
+    setIsDragging(false);
+  };
+
   const handleNextQuestion = async () => {
     if (!session || !quiz) return;
     
@@ -256,31 +275,56 @@ export function Game() {
           </motion.div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-12">
-            {currentQuestion.options.map((option: string, idx: number) => (
-              <button
-                key={idx}
-                onClick={() => handleSelectOption(idx)}
-                disabled={!!myResponse}
-                className={cn(
-                  "relative group p-8 rounded-[2rem] text-left transition-all active:scale-[0.98] disabled:active:scale-100 min-h-[120px] flex items-center justify-between border-2",
-                  myResponse?.answer_index === idx
-                    ? "bg-slate-900 border-slate-900 text-white shadow-2xl"
-                    : "bg-white border-slate-100 hover:border-amber-200/50 hover:shadow-xl transition-all",
-                  !!myResponse && myResponse.answer_index !== idx && "opacity-40"
-                )}
-              >
-                <div className="flex items-center gap-6 flex-1">
-                  <span className={cn(
-                    "w-12 h-12 flex items-center justify-center rounded-2xl font-black text-xl transition-colors",
-                    myResponse?.answer_index === idx ? "bg-white/20 text-white" : "bg-slate-50 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600"
-                  )}>
-                    {String.fromCharCode(65 + idx)}
-                  </span>
-                  <span className="text-xl font-bold tracking-tight">{option}</span>
-                </div>
-                {myResponse?.answer_index === idx && <div className="p-2 bg-white/20 rounded-xl"><Check className="w-6 h-6 text-white" /></div>}
-              </button>
-            ))}
+            {currentQuestion.options.map((option: string, idx: number) => {
+              const isSelected = myResponse?.answer_index === idx;
+              const isCorrect = idx === currentQuestion.correctOptionIndex;
+              const isWrongSelection = isSelected && !isCorrect;
+
+              return (
+                <button
+                  key={idx}
+                  onClick={() => handleSelectOption(idx)}
+                  disabled={!!myResponse}
+                  className={cn(
+                    "relative group p-8 rounded-[2rem] text-left transition-all active:scale-[0.98] disabled:active:scale-100 min-h-[120px] flex items-center justify-between border-2",
+                    isCorrect && myResponse
+                      ? "bg-emerald-50 border-emerald-300 text-slate-900"
+                      : isWrongSelection
+                      ? "bg-red-50 border-red-300 text-slate-900"
+                      : isSelected
+                      ? "bg-slate-900 border-slate-900 text-white shadow-2xl"
+                      : "bg-white border-slate-100 hover:border-amber-200/50 hover:shadow-xl transition-all",
+                    myResponse && !isSelected && !isCorrect && "opacity-40"
+                  )}
+                >
+                  <div className="flex items-center gap-6 flex-1">
+                    <span className={cn(
+                      "w-12 h-12 flex items-center justify-center rounded-2xl font-black text-xl transition-colors",
+                      isCorrect && myResponse
+                        ? "bg-emerald-200 text-emerald-700"
+                        : isWrongSelection
+                        ? "bg-red-200 text-red-700"
+                        : isSelected
+                        ? "bg-white/20 text-white"
+                        : "bg-slate-50 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600"
+                    )}>
+                      {String.fromCharCode(65 + idx)}
+                    </span>
+                    <span className="text-xl font-bold tracking-tight">{option}</span>
+                  </div>
+                  {isCorrect && myResponse && (
+                    <div className="p-2 bg-emerald-200 rounded-xl">
+                      <Check className="w-6 h-6 text-emerald-700" />
+                    </div>
+                  )}
+                  {isWrongSelection && (
+                    <div className="p-2 bg-red-200 rounded-xl">
+                      <X className="w-6 h-6 text-red-700" />
+                    </div>
+                  )}
+                </button>
+              );
+            })}
           </div>
 
           {myResponse && (
@@ -306,17 +350,29 @@ export function Game() {
         </div>
       </div>
 
-      {/* Leaderboard Sidebar */}
+      {/* Leaderboard Sidebar - Desktop Only */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
+        style={{
+          position: "fixed",
+          left: `calc(100% - ${rankingsPosition.x}px - 1.5rem - 18rem)`,
+          top: `calc(${rankingsPosition.y}px + 1.5rem)`,
+          cursor: isDragging ? "grabbing" : "grab"
+        }}
+        onMouseMove={handleDragMove}
+        onMouseUp={handleDragEnd}
+        onMouseLeave={handleDragEnd}
         className={cn(
-          "fixed bg-white rounded-[3rem] border border-slate-200 shadow-lg flex flex-col transition-all",
-          "bottom-4 right-4 sm:bottom-4 sm:right-4 w-72 sm:w-80 lg:w-96",
+          "hidden lg:flex bg-white rounded-[3rem] border border-slate-200 shadow-lg flex-col transition-all",
+          "w-96",
           rankingsCollapsed ? "p-4" : "p-4 h-auto max-h-96"
         )}
       >
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+        <div
+          onMouseDown={handleDragStart}
+          className="p-6 border-b border-slate-100 flex items-center justify-between select-none"
+        >
           <h3 className="text-xl font-black text-slate-900 flex items-center gap-3">
             <Award className="w-6 h-6" style={{ color: "var(--color-accent)" }} />
             Live Rankings
@@ -384,6 +440,101 @@ export function Game() {
           )}
         </AnimatePresence>
       </motion.div>
+
+      {/* Mobile Rankings Button */}
+      <motion.button
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        onClick={() => setShowMobileRankings(true)}
+        className="lg:hidden fixed bottom-4 right-4 p-4 bg-white rounded-full border border-slate-200 shadow-lg flex items-center justify-center z-40 hover:shadow-xl transition-shadow"
+      >
+        <Award className="w-6 h-6" style={{ color: "var(--color-accent)" }} />
+      </motion.button>
+
+      {/* Mobile Rankings Bottom Sheet */}
+      <AnimatePresence>
+        {showMobileRankings && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowMobileRankings(false)}
+              className="fixed inset-0 bg-black/40 z-50 lg:hidden"
+            />
+            {/* Bottom Sheet */}
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[3rem] border-t border-slate-200 shadow-2xl z-50 lg:hidden max-h-[80vh] flex flex-col"
+            >
+              {/* Handle Bar */}
+              <div className="flex justify-center pt-3 pb-2">
+                <div className="w-12 h-1 rounded-full bg-slate-200" />
+              </div>
+
+              {/* Header */}
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 className="text-xl font-black text-slate-900 flex items-center gap-3">
+                  <Award className="w-6 h-6" style={{ color: "var(--color-accent)" }} />
+                  Live Rankings
+                </h3>
+                <button
+                  onClick={() => setShowMobileRankings(false)}
+                  className="text-slate-400 hover:text-slate-600 transition-colors"
+                  aria-label="Close rankings"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* Rankings List */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                {participants.map((player, idx) => (
+                  <motion.div
+                    key={player.id}
+                    layout
+                    className={cn(
+                      "flex items-center gap-4 p-4 rounded-3xl transition-all border",
+                      idx === 0
+                        ? "bg-slate-900 border-slate-900 text-white shadow-xl"
+                        : (player.user_id === user?.id ? "bg-gray-100 border-gray-200" : "bg-slate-50 border-transparent hover:border-slate-200")
+                    )}
+                  >
+                    <div className={cn(
+                      "w-8 h-8 rounded-xl font-black text-xs flex items-center justify-center shrink-0",
+                      idx === 0 ? "bg-white/20" : "bg-white text-slate-400"
+                    )}>
+                      {idx + 1}
+                    </div>
+                    <img
+                      src={player.photo_url || `https://ui-avatars.com/api/?name=${player.display_name}`}
+                      className="w-10 h-10 rounded-xl border-2 border-white ring-1 ring-slate-100"
+                      alt={player.display_name}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className={cn("text-sm font-bold truncate", idx === 0 ? "text-white" : "text-slate-900")}>
+                        {player.display_name}
+                      </p>
+                      {player.user_id === user?.id && (
+                        <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: "var(--color-accent)" }}>You</span>
+                      )}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className={cn("text-lg font-black font-mono leading-none", idx === 0 ? "text-white" : "text-slate-900")}>
+                        {player.score.toLocaleString()}
+                      </p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
