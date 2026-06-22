@@ -21,6 +21,7 @@ export function Game() {
   const [rankingsCollapsed, setRankingsCollapsed] = useState(false);
   const [rankingsPosition, setRankingsPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
+  const [showMobileRankings, setShowMobileRankings] = useState(false);
 
   useEffect(() => {
     if (!sessionId || !user) return;
@@ -349,7 +350,7 @@ export function Game() {
         </div>
       </div>
 
-      {/* Leaderboard Sidebar */}
+      {/* Leaderboard Sidebar - Desktop Only */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -363,8 +364,8 @@ export function Game() {
         onMouseUp={handleDragEnd}
         onMouseLeave={handleDragEnd}
         className={cn(
-          "bg-white rounded-[3rem] border border-slate-200 shadow-lg flex flex-col transition-all",
-          "w-72 sm:w-80 lg:w-96",
+          "hidden lg:flex bg-white rounded-[3rem] border border-slate-200 shadow-lg flex-col transition-all",
+          "w-96",
           rankingsCollapsed ? "p-4" : "p-4 h-auto max-h-96"
         )}
       >
@@ -439,6 +440,101 @@ export function Game() {
           )}
         </AnimatePresence>
       </motion.div>
+
+      {/* Mobile Rankings Button */}
+      <motion.button
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        onClick={() => setShowMobileRankings(true)}
+        className="lg:hidden fixed bottom-4 right-4 p-4 bg-white rounded-full border border-slate-200 shadow-lg flex items-center justify-center z-40 hover:shadow-xl transition-shadow"
+      >
+        <Award className="w-6 h-6" style={{ color: "var(--color-accent)" }} />
+      </motion.button>
+
+      {/* Mobile Rankings Bottom Sheet */}
+      <AnimatePresence>
+        {showMobileRankings && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowMobileRankings(false)}
+              className="fixed inset-0 bg-black/40 z-50 lg:hidden"
+            />
+            {/* Bottom Sheet */}
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[3rem] border-t border-slate-200 shadow-2xl z-50 lg:hidden max-h-[80vh] flex flex-col"
+            >
+              {/* Handle Bar */}
+              <div className="flex justify-center pt-3 pb-2">
+                <div className="w-12 h-1 rounded-full bg-slate-200" />
+              </div>
+
+              {/* Header */}
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 className="text-xl font-black text-slate-900 flex items-center gap-3">
+                  <Award className="w-6 h-6" style={{ color: "var(--color-accent)" }} />
+                  Live Rankings
+                </h3>
+                <button
+                  onClick={() => setShowMobileRankings(false)}
+                  className="text-slate-400 hover:text-slate-600 transition-colors"
+                  aria-label="Close rankings"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* Rankings List */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                {participants.map((player, idx) => (
+                  <motion.div
+                    key={player.id}
+                    layout
+                    className={cn(
+                      "flex items-center gap-4 p-4 rounded-3xl transition-all border",
+                      idx === 0
+                        ? "bg-slate-900 border-slate-900 text-white shadow-xl"
+                        : (player.user_id === user?.id ? "bg-gray-100 border-gray-200" : "bg-slate-50 border-transparent hover:border-slate-200")
+                    )}
+                  >
+                    <div className={cn(
+                      "w-8 h-8 rounded-xl font-black text-xs flex items-center justify-center shrink-0",
+                      idx === 0 ? "bg-white/20" : "bg-white text-slate-400"
+                    )}>
+                      {idx + 1}
+                    </div>
+                    <img
+                      src={player.photo_url || `https://ui-avatars.com/api/?name=${player.display_name}`}
+                      className="w-10 h-10 rounded-xl border-2 border-white ring-1 ring-slate-100"
+                      alt={player.display_name}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className={cn("text-sm font-bold truncate", idx === 0 ? "text-white" : "text-slate-900")}>
+                        {player.display_name}
+                      </p>
+                      {player.user_id === user?.id && (
+                        <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: "var(--color-accent)" }}>You</span>
+                      )}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className={cn("text-lg font-black font-mono leading-none", idx === 0 ? "text-white" : "text-slate-900")}>
+                        {player.score.toLocaleString()}
+                      </p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
