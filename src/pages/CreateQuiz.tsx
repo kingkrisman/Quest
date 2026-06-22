@@ -34,10 +34,17 @@ export function CreateQuiz() {
   const parseQuizContent = (text: string) => {
     try {
       setParsingError("");
-      const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+
+      // Split by "Answers" or "Answer Key" section
+      const parts = text.split(/Answers?[\s:]*/i);
+      const questionSection = parts[0];
+      const answerSection = parts[1];
+
+      const lines = questionSection.split('\n').map(l => l.trim()).filter(l => l);
       const questions: any[] = [];
       let currentQuestion: any = null;
 
+      // Parse questions and options
       for (const line of lines) {
         // Match question number (1., 2., etc.)
         const questionMatch = line.match(/^(\d+)\.\s+(.+)/);
@@ -59,7 +66,7 @@ export function CreateQuiz() {
         // Match options (A., B., C., D.)
         const optionMatch = line.match(/^([A-D])\.\s+(.+)/);
         if (optionMatch && currentQuestion) {
-          const optionIndex = optionMatch[1].charCodeAt(0) - 65; // A=0, B=1, C=2, D=3
+          const optionIndex = optionMatch[1].charCodeAt(0) - 65;
           currentQuestion.options[optionIndex] = optionMatch[2];
         }
       }
@@ -70,8 +77,23 @@ export function CreateQuiz() {
       }
 
       if (questions.length === 0) {
-        setParsingError("No questions found. Please use format: 1. Question text\nA. Option\nB. Option\nC. Option\nD. Option");
+        setParsingError("No questions found. Please use format: 1. Question text\\nA. Option\\nB. Option\\nC. Option\\nD. Option");
         return;
+      }
+
+      // Parse answer key if provided
+      if (answerSection) {
+        const answerLines = answerSection.split('\n').map(l => l.trim()).filter(l => l);
+        for (const answerLine of answerLines) {
+          const answerMatch = answerLine.match(/^(\d+)\.\s*([A-D])/i);
+          if (answerMatch) {
+            const questionNum = parseInt(answerMatch[1]);
+            const answerLetter = answerMatch[2].toUpperCase();
+            if (questionNum > 0 && questionNum <= questions.length) {
+              questions[questionNum - 1].correctOptionIndex = answerLetter.charCodeAt(0) - 65;
+            }
+          }
+        }
       }
 
       setQuizData({
@@ -423,7 +445,7 @@ export function CreateQuiz() {
               <Paste className="w-5 h-5" style={{ color: "var(--color-accent)" }} />
               <h3 className="text-sm font-bold uppercase tracking-wider" style={{ color: "var(--color-accent)" }}>Paste Quiz Content</h3>
             </div>
-            <p className="text-xs text-slate-500 mb-4">Paste your raw quiz questions and options. Format: 1. Question text | A. Option | B. Option | C. Option | D. Option</p>
+            <p className="text-xs text-slate-500 mb-4">Paste your raw quiz questions, options, and answer key. Use the format shown in the example below. The answer key is optional but recommended.</p>
             <div className="flex gap-3">
               <textarea
                 value={pastedContent}
@@ -438,9 +460,13 @@ D. Confringo
 A. Entertainment
 B. Values, power and resources
 C. Friendship
-D. Language"
+D. Language
+
+Answers
+1. C
+2. B"
                 className="flex-1 px-4 py-4 bg-white rounded-2xl focus:ring-2 focus:outline-none transition-all placeholder:text-slate-300 font-mono text-sm" style={{ borderColor: "rgba(251, 191, 36, 0.3)", border: "1px solid rgba(251, 191, 36, 0.3)" }}
-                rows={6}
+                rows={8}
               />
               <button
                 onClick={() => parseQuizContent(pastedContent)}
