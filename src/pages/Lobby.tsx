@@ -29,7 +29,7 @@ export function Lobby() {
           photo_url: user.user_metadata?.photoURL || `https://ui-avatars.com/api/?name=${user.email}`,
           score: 0,
           last_answer_correct: false,
-        });
+        }, { onConflict: 'session_id,user_id' });
       } catch (err) {
         handleSupabaseError(err, OperationType.WRITE, `participants`);
       }

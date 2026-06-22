@@ -287,7 +287,7 @@ export function Game() {
                   disabled={!!myResponse}
                   className={cn(
                     "relative group p-8 rounded-[2rem] text-left transition-all active:scale-[0.98] disabled:active:scale-100 min-h-[120px] flex items-center justify-between border-2",
-                    isCorrect && myResponse
+                    isCorrect && isSelected && myResponse
                       ? "bg-emerald-50 border-emerald-300 text-slate-900"
                       : isWrongSelection
                       ? "bg-red-50 border-red-300 text-slate-900"
@@ -300,7 +300,7 @@ export function Game() {
                   <div className="flex items-center gap-6 flex-1">
                     <span className={cn(
                       "w-12 h-12 flex items-center justify-center rounded-2xl font-black text-xl transition-colors",
-                      isCorrect && myResponse
+                      isCorrect && isSelected && myResponse
                         ? "bg-emerald-200 text-emerald-700"
                         : isWrongSelection
                         ? "bg-red-200 text-red-700"
@@ -312,7 +312,7 @@ export function Game() {
                     </span>
                     <span className="text-xl font-bold tracking-tight">{option}</span>
                   </div>
-                  {isCorrect && myResponse && (
+                  {isCorrect && isSelected && myResponse && (
                     <div className="p-2 bg-emerald-200 rounded-xl">
                       <Check className="w-6 h-6 text-emerald-700" />
                     </div>
