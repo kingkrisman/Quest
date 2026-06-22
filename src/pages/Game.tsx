@@ -141,11 +141,11 @@ export function Game() {
     }
   };
 
-  const handleDragStart = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleDragStart = (e: MouseEvent) => {
     setIsDragging(true);
   };
 
-  const handleDragMove = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleDragMove = (e: MouseEvent) => {
     if (!isDragging) return;
     setRankingsPosition(prev => ({
       x: prev.x + e.movementX,
