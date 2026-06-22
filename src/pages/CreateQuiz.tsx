@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase, handleSupabaseError, OperationType } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
-import { Sparkles, Save, ArrowLeft, Plus, Trash2, HelpCircle, CheckCircle2, FileUp, FileText, X, Paste } from "lucide-react";
+import { Sparkles, Save, ArrowLeft, Plus, Trash2, HelpCircle, CheckCircle2, FileUp, FileText, X, Copy } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { generateQuizFromTopic, generateFlashcards } from "../lib/gemini";
 import { cn } from "../lib/utils";
@@ -442,7 +442,7 @@ export function CreateQuiz() {
         {generationType === "quiz" && (
           <div className="p-8 rounded-[2.5rem] border shadow-sm" style={{ backgroundColor: "rgba(251, 191, 36, 0.05)", borderColor: "rgba(251, 191, 36, 0.2)", boxShadow: "0 4px 6px -1px rgba(251, 191, 36, 0.1)" }}>
             <div className="flex items-center gap-2 mb-4">
-              <Paste className="w-5 h-5" style={{ color: "var(--color-accent)" }} />
+              <Copy className="w-5 h-5" style={{ color: "var(--color-accent)" }} />
               <h3 className="text-sm font-bold uppercase tracking-wider" style={{ color: "var(--color-accent)" }}>Paste Quiz Content</h3>
             </div>
             <p className="text-xs text-slate-500 mb-4">Paste your raw quiz questions, options, and answer key. Use the format shown in the example below. The answer key is optional but recommended.</p>
