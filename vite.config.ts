@@ -15,7 +15,7 @@ export default defineConfig(() => {
       // Installable and offline-first: study data already lives on the device.
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['icon.svg', 'apple-touch-icon.png'],
+        includeAssets: ['favicon.ico', 'icon.svg', 'apple-touch-icon.png'],
         manifest: {
           name: 'KÀWÉ',
           short_name: 'KÀWÉ',
