@@ -1,0 +1,14 @@
+{
+  // Used by `tsx` to run server.ts. Omits the "paths" alias from tsconfig.json,
+  // which makes tsx mis-resolve @tailwindcss/node's loader on Windows
+  // (ERR_INVALID_URL_SCHEME when Vite loads vite.config.ts).
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "noEmit": true
+  },
+  "include": ["server.ts"]
+}

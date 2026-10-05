@@ -1,244 +1,190 @@
-import { useEffect, useState } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { motion } from "motion/react";
 import { supabase } from "../lib/supabase";
+import { liveErrorMessage } from "../lib/live";
+import { actions, uid } from "../lib/store";
 import { useAuth } from "../contexts/AuthContext";
-import { Trophy, Home, Award, Medal, Crown, ArrowRight, RotateCcw, Shuffle } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
-import { cn } from "../lib/utils";
-import { CustomLoader } from "../components/CustomLoader";
+import { Avatar, Button, PageSpinner } from "../components/ui";
+import { I } from "../components/icons";
+import { toast } from "../components/Toaster";
+import { celebrate, feedback } from "../lib/feedback";
+import { spring, springBouncy } from "../lib/motion";
+import { cn, generatePin, shuffle } from "../lib/utils";
+
+interface Participant {
+  id: string;
+  user_id: string;
+  display_name: string | null;
+  photo_url: string | null;
+  score: number;
+}
+interface Quiz {
+  id: string;
+  title: string;
+  description?: string | null;
+  questions: { text: string; options: string[]; correctOptionIndex: number; points?: number; timeLimit?: number }[];
+}
+
+const PODIUM = [
+  { place: 2, height: "h-24 sm:h-32", color: "#c7c7cc", delay: 0.45 },
+  { place: 1, height: "h-36 sm:h-44", color: "#ffcc00", delay: 0.8 },
+  { place: 3, height: "h-16 sm:h-24", color: "#d9905a", delay: 0.15 },
+];
 
 export function Results() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [participants, setParticipants] = useState<any[]>([]);
-  const [quiz, setQuiz] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [isCreatingScrambledSession, setIsCreatingScrambledSession] = useState(false);
+  const [participants, setParticipants] = useState<Participant[] | null>(null);
+  const [quiz, setQuiz] = useState<Quiz | null>(null);
+  const [hostId, setHostId] = useState<string | null>(null);
+  const [busy, setBusy] = useState<null | "same" | "scramble">(null);
+  const [saved, setSaved] = useState(false);
+  const celebrated = useRef(false);
 
   useEffect(() => {
     if (!sessionId) return;
-
-    const participantsChannel = supabase
-      .channel(`participants:${sessionId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'participants', filter: `session_id=eq.${sessionId}` }, async (payload) => {
-        const { data: ps } = await supabase.from('participants').select('*').eq('session_id', sessionId).order('score', { ascending: false });
-        setParticipants(ps || []);
-        setLoading(false);
-      })
-      .subscribe();
-
-    const fetchSession = async () => {
-      const { data: sessionData } = await supabase.from('sessions').select('*').eq('id', sessionId).single();
-      if (sessionData) {
-        const { data: quizData } = await supabase.from('quizzes').select('*').eq('id', sessionData.quiz_id).single();
-        if (quizData) {
-          setQuiz(quizData);
-        }
+    (async () => {
+      const [{ data: ps }, { data: session }] = await Promise.all([
+        supabase.from("participants").select("*").eq("session_id", sessionId).order("score", { ascending: false }),
+        supabase.from("sessions").select("quiz_id,host_id").eq("id", sessionId).single(),
+      ]);
+      setParticipants((ps as Participant[]) || []);
+      if (session) {
+        setHostId(session.host_id);
+        const { data: q } = await supabase.from("quizzes").select("*").eq("id", session.quiz_id).single();
+        setQuiz(q as Quiz);
       }
-    };
-
-    supabase.from('participants').select('*').eq('session_id', sessionId).order('score', { ascending: false }).then(({ data }) => {
-      setParticipants(data || []);
-      setLoading(false);
-    });
-
-    fetchSession();
-
-    return () => {
-      supabase.removeChannel(participantsChannel);
-    };
+    })();
   }, [sessionId]);
 
-  const handleScrambleAndPlayAgain = async () => {
-    if (!quiz || !user || !sessionId) return;
+  useEffect(() => {
+    if (!participants || celebrated.current || participants.length === 0) return;
+    celebrated.current = true;
+    const myPlace = participants.findIndex((p) => p.user_id === user.id);
+    const t = setTimeout(() => {
+      feedback("complete");
+      celebrate();
+    }, 1200);
+    // Placement XP once per game, even across refreshes.
+    const rewardKey = `kawe:rewarded:${sessionId}`;
+    if (myPlace >= 0 && !localStorage.getItem(rewardKey)) {
+      localStorage.setItem(rewardKey, "1");
+      actions.addXp(myPlace < 3 ? [50, 30, 20][myPlace] : 10);
+    }
+    return () => clearTimeout(t);
+  }, [participants, user.id, sessionId]);
 
-    setIsCreatingScrambledSession(true);
-
+  const playAgain = async (scramble: boolean) => {
+    if (!quiz) return;
+    setBusy(scramble ? "scramble" : "same");
     try {
-      // Get the original session to get the host info
-      const { data: originalSession } = await supabase
-        .from('sessions')
-        .select('*')
-        .eq('id', sessionId)
-        .single();
-
-      if (!originalSession) return;
-
-      // Shuffle questions
-      const shuffledQuestions = [...quiz.questions].sort(() => Math.random() - 0.5);
-
-      // Create new scrambled quiz
-      const { data: newQuiz, error: quizError } = await supabase
-        .from('quizzes')
-        .insert({
-          title: `${quiz.title} (Scrambled)`,
-          questions: shuffledQuestions,
-          created_by: quiz.created_by,
-        })
-        .select()
-        .single();
-
-      if (quizError) throw quizError;
-
-      // Create new session
-      const { data: newSession, error: sessionError } = await supabase
-        .from('sessions')
-        .insert({
-          quiz_id: newQuiz.id,
-          host_id: originalSession.host_id,
-          status: 'active',
-          current_question_index: 0,
-          question_start_time: new Date().toISOString(),
-        })
-        .select()
-        .single();
-
-      if (sessionError) throw sessionError;
-
-      // Navigate to the new game
-      navigate(`/game/${newSession.id}`);
-    } catch (error) {
-      console.error('Error creating scrambled session:', error);
-      setIsCreatingScrambledSession(false);
+      let quizId = quiz.id;
+      if (scramble) {
+        const questions = shuffle(quiz.questions).map((q, i) => {
+          const order = shuffle(q.options.map((_, k) => k));
+          return { ...q, id: String(i + 1), options: order.map((k) => q.options[k]), correctOptionIndex: order.indexOf(q.correctOptionIndex) };
+        });
+        const { data, error } = await supabase.from("quizzes").insert({ creator_id: user.id, title: quiz.title, description: quiz.description ?? null, questions }).select("id").single();
+        if (error) throw error;
+        quizId = data.id;
+      }
+      const { data: session, error } = await supabase.from("sessions").insert({ quiz_id: quizId, host_id: user.id, pin: generatePin(), status: "lobby", current_question_index: -1 }).select("id").single();
+      if (error) throw error;
+      navigate(`/lobby/${session.id}`);
+    } catch (err) {
+      toast.error("Couldn't start a new game", { description: liveErrorMessage(err) });
+      setBusy(null);
     }
   };
 
-  if (loading) {
-    return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="flex items-center justify-center min-h-[calc(100vh-64px)]"
-      >
-        <CustomLoader />
-      </motion.div>
-    );
-  }
+  const saveToLibrary = () => {
+    if (!quiz) return;
+    const deck = actions.createDeck({
+      title: quiz.title,
+      description: quiz.description ?? "",
+      icon: "rocket",
+      items: quiz.questions.map((q) => ({ id: uid(), prompt: q.text, answer: q.options[q.correctOptionIndex], options: q.options, correctIndex: q.correctOptionIndex })),
+    });
+    setSaved(true);
+    toast.success("Saved to Library", { action: { label: "Study", onClick: () => navigate(`/deck/${deck.id}`) } });
+  };
 
-  const podium = participants.slice(0, 3);
-  const others = participants.slice(3);
+  if (!participants) return <PageSpinner />;
+
+  const top = [participants[1], participants[0], participants[2]];
+  const rest = participants.slice(3);
+  const isHost = hostId === user.id;
 
   return (
-    <div className="min-h-[calc(100vh-64px)] bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto flex flex-col items-center">
-        <motion.div
-          initial={{ y: -50, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          className="text-center mb-16"
-        >
-          <Award className="w-16 h-16 text-yellow-500 mx-auto mb-6" />
-          <h1 className="text-5xl font-black text-gray-900 tracking-tight">Game Over!</h1>
-          <p className="text-gray-500 text-xl font-medium mt-2">{quiz?.title || "Quiz"} - Final Standings</p>
-        </motion.div>
-
-        {/* Podium */}
-        <div className="flex items-end justify-center gap-2 sm:gap-6 w-full mb-16 px-4">
-          {/* 2nd Place */}
-          {podium[1] && (
-            <motion.div 
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.2 }}
-              className="flex flex-col items-center space-y-4 mb-4"
-            >
-              <img src={podium[1].photo_url} className="w-20 h-20 rounded-full border-4 border-gray-300 shadow-xl" />
-              <div className="w-24 sm:w-32 h-40 bg-gray-200 rounded-t-3xl shadow-xl flex flex-col items-center justify-start py-6 text-gray-600">
-                <span className="text-3xl font-black">2</span>
-                <span className="text-xs font-black uppercase mt-1">Silver</span>
-              </div>
-              <p className="font-bold text-gray-700 text-center line-clamp-1">{podium[1].display_name}</p>
-              <span className="font-black" style={{ color: "var(--color-accent)" }}>{podium[1].score}</span>
-            </motion.div>
-          )}
-
-          {/* 1st Place */}
-          {podium[0] && (
-            <motion.div 
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="flex flex-col items-center space-y-4"
-            >
-              <div className="relative">
-                <Crown className="w-12 h-12 text-yellow-400 absolute -top-10 left-1/2 -translate-x-1/2 animate-bounce" />
-                <img src={podium[0].photo_url} className="w-32 h-32 rounded-full border-4 border-yellow-400 shadow-2xl relative z-10" />
-              </div>
-              <div className="w-32 sm:w-44 h-56 bg-yellow-400 rounded-t-3xl shadow-2xl flex flex-col items-center justify-start py-8 text-yellow-900">
-                <span className="text-5xl font-black">1</span>
-                <span className="text-sm font-black uppercase mt-1">Winner</span>
-              </div>
-              <p className="font-black text-gray-900 text-xl text-center line-clamp-1">{podium[0].display_name}</p>
-              <span className="font-black text-2xl" style={{ color: "var(--color-accent)" }}>{podium[0].score}</span>
-            </motion.div>
-          )}
-
-          {/* 3rd Place */}
-          {podium[2] && (
-            <motion.div 
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.4 }}
-              className="flex flex-col items-center space-y-4 mb-2"
-            >
-              <img src={podium[2].photo_url} className="w-16 h-16 rounded-full border-4 border-orange-400 shadow-xl" />
-              <div className="w-24 sm:w-28 h-32 bg-orange-200 rounded-t-3xl shadow-xl flex flex-col items-center justify-start py-4 text-orange-700">
-                <span className="text-2xl font-black">3</span>
-                <span className="text-xs font-black uppercase mt-1">Bronze</span>
-              </div>
-              <p className="font-bold text-gray-700 text-center line-clamp-1">{podium[2].display_name}</p>
-              <span className="font-black" style={{ color: "var(--color-accent)" }}>{podium[2].score}</span>
-            </motion.div>
-          )}
-        </div>
-
-        {/* Other Players */}
-        {others.length > 0 && (
-          <div className="w-full max-w-2xl bg-white rounded-3xl shadow-sm border border-gray-100 p-8 mb-12">
-            <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-6 px-2">Final Standings</h3>
-            <div className="space-y-4">
-              {others.map((player, idx) => (
-                <div key={player.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl">
-                  <span className="w-6 font-bold text-gray-400">{idx + 4}</span>
-                  <img src={player.photo_url} className="w-10 h-10 rounded-xl" />
-                  <span className="font-bold text-gray-900 flex-1">{player.display_name}</span>
-                  <span className="font-black text-gray-900">{player.score} pts</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="flex flex-col sm:flex-row items-center gap-4 pb-20">
-          <button
-            onClick={handleScrambleAndPlayAgain}
-            disabled={isCreatingScrambledSession}
-            className="flex items-center gap-2 px-8 py-4 text-white rounded-2xl font-black shadow-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed" style={{ backgroundColor: "var(--color-accent)", boxShadow: "0 20px 25px -5px rgba(218, 119, 86, 0.2)" }}
-          >
-            {isCreatingScrambledSession ? (
-              <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity }}>
-                <Shuffle className="w-5 h-5" />
-              </motion.div>
-            ) : (
-              <Shuffle className="w-5 h-5" />
-            )}
-            Scramble & Play Again
-          </button>
-          <Link
-            to="/dashboard"
-            className="flex items-center gap-2 px-8 py-4 bg-indigo-50 text-indigo-900 border-2 border-indigo-100 rounded-2xl font-black transition-all hover:bg-indigo-100 active:scale-95"
-          >
-            <RotateCcw className="w-5 h-5" />
-            Play Same Quiz
-          </Link>
-          <Link
-            to="/"
-            className="flex items-center gap-2 px-8 py-4 bg-white text-gray-900 border-2 border-gray-100 rounded-2xl font-black transition-all hover:bg-gray-50 active:scale-95"
-          >
-            <Home className="w-5 h-5" />
-            Back Home
-          </Link>
-        </div>
+    <div className="max-w-2xl mx-auto px-4 sm:px-8 pt-10 sm:pt-14 pb-12">
+      <div className="text-center">
+        <h1 className="t-large text-ink">Final standings</h1>
+        <p className="t-subhead text-ink-2 mt-1.5">{quiz?.title ?? "Live game"}</p>
       </div>
+
+      <div className="flex items-end justify-center gap-2 sm:gap-3 mt-12">
+        {PODIUM.map((slot, i) => {
+          const p = top[i];
+          if (!p) return <div key={slot.place} className="w-24 sm:w-32" />;
+          return (
+            <div key={p.id} className="flex flex-col items-center w-24 sm:w-32">
+              <motion.div initial={{ opacity: 0, y: 16, scale: 0.8 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ ...springBouncy, delay: slot.delay + 0.3 }} className="flex flex-col items-center mb-3">
+                <div className="relative">
+                  {slot.place === 1 && <I.crown className="absolute -top-7 left-1/2 -translate-x-1/2 w-7 h-7 text-yellow" />}
+                  <Avatar name={p.display_name || "Player"} value={p.photo_url} size={slot.place === 1 ? 72 : 56} />
+                </div>
+                <p className="t-subhead font-semibold text-ink mt-2 text-center line-clamp-1">{p.display_name || "Player"}</p>
+                <p className="t-footnote font-semibold text-ink-2 tabular-nums">{p.score.toLocaleString()}</p>
+              </motion.div>
+              <motion.div
+                initial={{ scaleY: 0 }}
+                animate={{ scaleY: 1 }}
+                transition={{ ...spring, duration: 0.7, delay: slot.delay }}
+                style={{ transformOrigin: "bottom", background: `linear-gradient(180deg, color-mix(in srgb, ${slot.color} 80%, white), ${slot.color})` }}
+                className={cn("w-full rounded-t-2xl grid place-items-start justify-center pt-3 text-white t-title1", slot.height)}
+              >
+                {slot.place}
+              </motion.div>
+            </div>
+          );
+        })}
+      </div>
+
+      {rest.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ ...spring, delay: 1.3 }} className="grouped mt-8">
+          {rest.map((p, i) => (
+            <div key={p.id} className={cn("flex items-center gap-3 px-4 h-12", p.user_id === user.id && "bg-accent/8")}>
+              <span className="w-5 t-footnote font-semibold text-ink-2 tabular-nums">{i + 4}</span>
+              <Avatar name={p.display_name || "Player"} value={p.photo_url} size={28} />
+              <span className="flex-1 t-subhead text-ink truncate">{p.display_name || "Player"}</span>
+              <span className="t-subhead font-semibold text-ink tabular-nums">{p.score.toLocaleString()}</span>
+            </div>
+          ))}
+        </motion.div>
+      )}
+
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.4 }} className="flex flex-wrap justify-center gap-2.5 mt-10">
+        {isHost && (
+          <>
+            <Button icon={I.restart} onClick={() => playAgain(false)} loading={busy === "same"} disabled={!!busy}>
+              Play Again
+            </Button>
+            <Button variant="gray" icon={I.shuffle} onClick={() => playAgain(true)} loading={busy === "scramble"} disabled={!!busy}>
+              Shuffle & Replay
+            </Button>
+          </>
+        )}
+        {quiz && (
+          <Button variant="gray" icon={saved ? I.check : I.bookmark} onClick={saveToLibrary} disabled={saved}>
+            {saved ? "Saved" : "Save to Library"}
+          </Button>
+        )}
+        <Button variant="plain" onClick={() => navigate("/")}>
+          Done
+        </Button>
+      </motion.div>
     </div>
   );
 }

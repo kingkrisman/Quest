@@ -2,11 +2,35 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>KÀWÉ - Study App</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23DA7756'><path d='M6 4L6 20' stroke='white' stroke-width='2.5' stroke-linecap='round' fill='none'/><path d='M6 10L16 4' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/><path d='M6 14L18 6' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/><circle cx='18' cy='14' r='2.5' fill='white'/></svg>" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>KÀWÉ · Study smarter</title>
+    <meta name="description" content="Flashcards that schedule themselves, practice quizzes, timed exams and live games. Scan a PDF or your notes and start studying in seconds." />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f3eee4" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#15130f" media="(prefers-color-scheme: dark)" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="KÀWÉ" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta property="og:title" content="KÀWÉ · Study smarter" />
+    <meta property="og:description" content="Turn your notes into flashcards, quizzes and exams. Spaced repetition, study games and live quizzes with friends." />
+    <meta property="og:image" content="/icon-512.png" />
+    <meta name="twitter:card" content="summary" />
+    <script>
+      // Apply the saved theme before first paint so dark mode never flashes white.
+      try {
+        var s = JSON.parse(localStorage.getItem("kawe:v1") || "{}").settings || {};
+        var dark = s.theme === "dark" || ((!s.theme || s.theme === "system") && matchMedia("(prefers-color-scheme: dark)").matches);
+        if (dark) document.documentElement.classList.add("dark");
+      } catch (e) {}
+    </script>
   </head>
   <body>
+    <noscript>
+      <p style="font-family: system-ui, sans-serif; padding: 2rem; max-width: 32rem; margin: auto">KÀWÉ needs JavaScript to run. Turn it on in your browser settings and reload.</p>
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

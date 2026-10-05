@@ -1,6 +1,5 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { supabase } from "./supabase";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -10,7 +9,7 @@ export function generatePin() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-export function formatDate(date: string | Date) {
+export function formatDate(date: string | number | Date) {
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
@@ -18,61 +17,38 @@ export function formatDate(date: string | Date) {
   }).format(new Date(date));
 }
 
-export async function createTestQuiz(userId: string) {
-  const testQuiz = {
-    creator_id: userId,
-    title: "Test Sprint - General Knowledge",
-    description: "A sample quiz to test the game mechanics and features.",
-    questions: [
-      {
-        id: "1",
-        text: "What is the capital of France?",
-        options: ["London", "Berlin", "Paris", "Madrid"],
-        correctOptionIndex: 2,
-        points: 1000,
-        timeLimit: 15
-      },
-      {
-        id: "2",
-        text: "Which planet is known as the Red Planet?",
-        options: ["Venus", "Mars", "Jupiter", "Saturn"],
-        correctOptionIndex: 1,
-        points: 1000,
-        timeLimit: 15
-      },
-      {
-        id: "3",
-        text: "What is the largest ocean on Earth?",
-        options: ["Atlantic Ocean", "Indian Ocean", "Arctic Ocean", "Pacific Ocean"],
-        correctOptionIndex: 3,
-        points: 1000,
-        timeLimit: 15
-      },
-      {
-        id: "4",
-        text: "Who wrote Romeo and Juliet?",
-        options: ["Jane Austen", "William Shakespeare", "Charles Dickens", "Mark Twain"],
-        correctOptionIndex: 1,
-        points: 1000,
-        timeLimit: 15
-      },
-      {
-        id: "5",
-        text: "What is the chemical symbol for Gold?",
-        options: ["Go", "Gd", "Au", "Ag"],
-        correctOptionIndex: 2,
-        points: 1000,
-        timeLimit: 15
-      }
-    ]
-  };
+export function timeAgo(ts: number) {
+  const s = Math.round((Date.now() - ts) / 1000);
+  if (s < 60) return "just now";
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.round(h / 24);
+  if (d < 7) return `${d}d ago`;
+  return formatDate(ts);
+}
 
-  try {
-    const { data, error } = await supabase.from('quizzes').insert(testQuiz).select();
-    if (error) throw error;
-    return data?.[0];
-  } catch (err) {
-    console.error("Failed to create test quiz:", err);
-    return null;
+export function formatMs(ms: number) {
+  const s = ms / 1000;
+  if (s < 60) return `${s.toFixed(1)}s`;
+  const m = Math.floor(s / 60);
+  return `${m}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+}
+
+export function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
   }
+  return a;
+}
+
+export function greeting() {
+  const h = new Date().getHours();
+  if (h < 5) return "Burning the midnight oil";
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
 }

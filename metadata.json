@@ -1,6 +1,6 @@
 {
-  "name": "QuizPulse",
-  "description": "A real-time, AI-powered full-stack quiz platform with live leaderboards and authentication.",
+  "name": "KÀWÉ",
+  "description": "A study app with spaced-repetition flashcards, study games, focus timer, and live multiplayer quizzes.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

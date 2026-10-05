@@ -1,255 +1,206 @@
-import { useState, CSSProperties } from "react";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabase";
-import { useAuth } from "../contexts/AuthContext";
-import { ArrowLeft, Save, Loader2, Check } from "lucide-react";
-import { motion } from "motion/react";
+import { useRef, useState } from "react";
+import { actions, levelInfo, useStore } from "../lib/store";
+import { Avatar, Button, Dialog, Group, PageHeader, Row, Segmented, Switch } from "../components/ui";
+import { COLORS, I, colorVar } from "../components/icons";
+import { toast } from "../components/Toaster";
+import { feedback } from "../lib/feedback";
 
-const AVATAR_OPTIONS = [
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=phoenix",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=luna",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=solar",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=nova",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=atlas",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=echo",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=sirius",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=zen",
+const GOALS = [
+  { xp: 20, label: "Casual" },
+  { xp: 50, label: "Regular" },
+  { xp: 100, label: "Serious" },
+  { xp: 200, label: "Intense" },
 ];
 
 export function Profile() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const [displayName, setDisplayName] = useState(user?.user_metadata?.displayName || user?.email?.split("@")[0] || "");
-  const [photoUrl, setPhotoUrl] = useState(user?.user_metadata?.photoURL || AVATAR_OPTIONS[0]);
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const { profile, settings, xp } = useStore();
+  const [name, setName] = useState(profile.name);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const lvl = levelInfo(xp);
 
-  const handleAvatarSelect = (avatarUrl: string) => {
-    setPhotoUrl(avatarUrl);
-  };
-
-  const handleSave = async () => {
-    if (!user) return;
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.updateUser({
-        data: {
-          displayName: displayName || user.email?.split("@")[0],
-          photoURL: photoUrl,
-        },
-      });
-      if (error) throw error;
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-    } catch (err) {
-      console.error("Update failed:", err);
-      alert("Failed to update profile");
-    } finally {
-      setLoading(false);
+  const saveName = () => {
+    const clean = name.trim().slice(0, 32);
+    if (!clean) return setName(profile.name);
+    if (clean !== profile.name) {
+      actions.updateProfile({ name: clean });
+      toast.success("Name updated");
     }
   };
 
-  if (!user) {
-    return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="flex flex-col items-center justify-center min-h-[calc(100vh-64px)] p-4"
-      >
-        <motion.h2
-          initial={{ y: 10 }}
-          animate={{ y: 0 }}
-          className="text-xl sm:text-2xl font-bold mb-4 text-slate-900"
-        >
-          Please sign in to view your profile
-        </motion.h2>
-      </motion.div>
-    );
-  }
+  const exportData = () => {
+    const url = URL.createObjectURL(new Blob([actions.exportData()], { type: "application/json" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `kawe-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Backup downloaded");
+  };
+
+  const importData = async (file?: File) => {
+    if (!file) return;
+    try {
+      actions.importData(await file.text());
+      toast.success("Backup restored");
+    } catch (err) {
+      toast.error("Couldn't restore that file", { description: err instanceof Error ? err.message : undefined });
+    }
+  };
 
   return (
-    <div className="min-h-[calc(100vh-64px)] bg-slate-50 px-3 sm:px-4 md:px-6 lg:px-8 py-6 sm:py-8 md:py-12">
-      <div className="max-w-3xl mx-auto w-full">
-        {/* Header */}
-        <motion.header
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between gap-2 sm:gap-4 mb-8 sm:mb-10 md:mb-12"
-        >
-          <motion.button
-            onClick={() => navigate("/dashboard")}
-            whileHover={{ x: -4 }}
-            whileTap={{ scale: 0.95 }}
-            className="p-2 -ml-2 text-slate-600 hover:bg-white rounded-lg transition-all"
-          >
-            <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6" />
-          </motion.button>
-          <motion.h1
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 tracking-tight flex-1 text-center"
-          >
-            My Profile
-          </motion.h1>
-          <div className="w-9 sm:w-10" />
-        </motion.header>
+    <div className="max-w-2xl mx-auto px-4 sm:px-8 pt-8 sm:pt-12 pb-12">
+      <PageHeader title="Settings" />
 
-        {/* Main Content */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="bg-white rounded-2xl sm:rounded-3xl md:rounded-[2.5rem] border border-slate-200 shadow-sm p-6 sm:p-8 md:p-12 space-y-8 sm:space-y-10"
-        >
-          {/* Photo Section */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2 }}
-            className="flex flex-col items-center space-y-6"
-          >
-            <motion.img
-              src={photoUrl}
-              alt={displayName}
-              whileHover={{ scale: 1.05 }}
-              className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-2xl sm:rounded-3xl object-cover border-4 border-slate-100 shadow-lg"
+      <div className="space-y-7">
+        {/* Profile card */}
+        <div className="grouped">
+          <div className="flex flex-col items-center text-center px-4 pt-6 pb-5">
+            <Avatar name={name || profile.name} color={profile.color} size={84} />
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onBlur={saveName}
+              onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+              aria-label="Display name"
+              className="mt-3 w-full max-w-xs text-center t-title2 bg-transparent outline-none rounded-lg focus:bg-fill"
             />
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.3 }}
-              className="text-[8px] sm:text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest"
-            >
-              Select Your Avatar
-            </motion.p>
-
-            {/* Avatar Grid */}
-            <div className="grid grid-cols-4 gap-3 sm:gap-4 w-full max-w-xs">
-              {AVATAR_OPTIONS.map((avatar, index) => (
-                <motion.button
-                  key={avatar}
-                  onClick={() => handleAvatarSelect(avatar)}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 + index * 0.05 }}
-                  className={`relative rounded-xl sm:rounded-2xl overflow-hidden border-2 transition-all ${
-                    photoUrl === avatar
-                      ? "border-accent shadow-lg"
-                      : "border-slate-200 hover:border-slate-300"
-                  }`}
-                  style={
-                    photoUrl === avatar
-                      ? { borderColor: "var(--color-accent)", boxShadow: "0 10px 15px -3px rgba(218, 119, 86, 0.2)" }
-                      : {}
-                  }
-                >
-                  <img src={avatar} alt={`Avatar ${index + 1}`} className="w-full h-full object-cover" />
-                  {photoUrl === avatar && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                      <Check className="w-5 h-5 text-white" style={{ color: "var(--color-accent)" }} />
-                    </div>
-                  )}
-                </motion.button>
+            <p className="t-footnote text-ink-2 mt-0.5">
+              Level {lvl.level} · {xp.toLocaleString()} XP · Guest on this device
+            </p>
+            <div className="flex flex-wrap justify-center gap-2.5 mt-4">
+              {COLORS.filter((c) => c !== "gray").map((c) => (
+                <button
+                  key={c}
+                  aria-label={`${c} avatar`}
+                  onClick={() => actions.updateProfile({ color: c })}
+                  className="press w-7 h-7 rounded-full"
+                  style={{ background: colorVar(c), boxShadow: profile.color === c ? `0 0 0 2px var(--c-surface), 0 0 0 4px ${colorVar(c)}` : undefined }}
+                />
               ))}
             </div>
-          </motion.div>
-
-          {/* Form Fields */}
-          <div className="space-y-6 sm:space-y-8">
-            {/* Display Name */}
-            <motion.div
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.25 }}
-              className="space-y-2 sm:space-y-3"
-            >
-              <label className="block text-[8px] sm:text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                Display Name
-              </label>
-              <motion.input
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Enter your name"
-                whileFocus={{ scale: 1.01 }}
-                className="w-full px-4 sm:px-5 md:px-6 py-3 sm:py-4 md:py-4 bg-slate-50 border border-slate-200 rounded-lg sm:rounded-xl md:rounded-2xl focus:ring-2 focus:outline-none transition-all text-base sm:text-lg md:text-lg font-bold"
-                style={{ "--focus-ring": "var(--color-accent)" } as CSSProperties}
-              />
-            </motion.div>
-
-            {/* Email (Read-only) */}
-            <motion.div
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 }}
-              className="space-y-2 sm:space-y-3"
-            >
-              <label className="block text-[8px] sm:text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                Email Address
-              </label>
-              <input
-                type="email"
-                value={user.email || ""}
-                disabled
-                className="w-full px-4 sm:px-5 md:px-6 py-3 sm:py-4 md:py-4 bg-slate-50 border border-slate-200 rounded-lg sm:rounded-xl md:rounded-2xl text-slate-500 cursor-not-allowed text-base sm:text-lg md:text-lg"
-              />
-              <p className="text-[7px] sm:text-[8px] md:text-[10px] text-slate-400">Email cannot be changed</p>
-            </motion.div>
           </div>
+        </div>
 
-          {/* Action Buttons */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35 }}
-            className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4 sm:pt-6 md:pt-8"
-          >
-            <motion.button
-              onClick={handleSave}
-              disabled={loading}
-              whileHover={!loading ? { scale: 1.02 } : {}}
-              whileTap={!loading ? { scale: 0.98 } : {}}
-              className="flex-1 inline-flex items-center justify-center gap-2 py-3 sm:py-4 md:py-5 px-4 sm:px-6 md:px-8 text-white rounded-lg sm:rounded-xl md:rounded-2xl font-black text-sm sm:text-base md:text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ backgroundColor: "var(--color-accent)", boxShadow: "0 20px 25px -5px rgba(218, 119, 86, 0.2)" }}
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
-                  <span className="hidden sm:inline">Saving...</span>
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span className="hidden sm:inline">Save Changes</span>
-                </>
-              )}
-            </motion.button>
-            <motion.button
-              onClick={() => navigate("/dashboard")}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="flex-1 inline-flex items-center justify-center gap-2 py-3 sm:py-4 md:py-5 px-4 sm:px-6 md:px-8 bg-slate-100 text-slate-900 rounded-lg sm:rounded-xl md:rounded-2xl font-black text-sm sm:text-base md:text-lg transition-all hover:bg-slate-200 active:scale-95"
-            >
-              Cancel
-            </motion.button>
-          </motion.div>
+        <Group header="Appearance">
+          <Row
+            icon={I.monitor}
+            color="blue"
+            title="Theme"
+            trailing={
+              <Segmented
+                value={settings.theme}
+                onChange={(theme) => actions.updateSettings({ theme })}
+                options={[
+                  { value: "system", label: "Auto" },
+                  { value: "light", icon: I.sun, ariaLabel: "Light" },
+                  { value: "dark", icon: I.moon, ariaLabel: "Dark" },
+                ]}
+              />
+            }
+          />
+        </Group>
 
-          {/* Success Message */}
-          {success && (
-            <motion.div
-              initial={{ opacity: 0, y: -10, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -10, scale: 0.95 }}
-              className="p-4 sm:p-5 md:p-6 bg-emerald-50 border-2 border-emerald-200 rounded-lg sm:rounded-xl md:rounded-2xl text-emerald-700 font-bold text-center text-sm sm:text-base md:text-lg"
-            >
-              ✓ Profile updated successfully!
-            </motion.div>
-          )}
-        </motion.div>
+        <Group header="Sounds & Haptics">
+          <Row
+            icon={I.sound}
+            color="pink"
+            title="Sound Effects"
+            trailing={
+              <Switch
+                label="Sound effects"
+                checked={settings.sound}
+                onChange={(sound) => {
+                  actions.updateSettings({ sound });
+                  if (sound) setTimeout(() => feedback("correct"), 0);
+                }}
+              />
+            }
+          />
+          <Row icon={I.haptics} color="gray" title="Haptics" subtitle="On supported phones" trailing={<Switch label="Haptics" checked={settings.haptics} onChange={(haptics) => actions.updateSettings({ haptics })} />} />
+        </Group>
+
+        <Group header="Daily Goal" footer="Your Study ring closes when you hit this much XP in a day.">
+          {GOALS.map((g) => (
+            <Row
+              key={g.xp}
+              title={g.label}
+              subtitle={`${g.xp} XP a day`}
+              onClick={() => actions.updateSettings({ dailyGoal: g.xp })}
+              trailing={settings.dailyGoal === g.xp ? <I.check className="w-5 h-5 text-accent" /> : undefined}
+            />
+          ))}
+        </Group>
+
+        <Group header="Focus Timer">
+          <Row
+            icon={I.meditate}
+            color="orange"
+            title="Focus Length"
+            trailing={
+              <select value={settings.focusMinutes} onChange={(e) => actions.updateSettings({ focusMinutes: Number(e.target.value) })} aria-label="Focus length" className="bg-transparent t-body text-ink-2 text-right outline-none">
+                {[15, 20, 25, 30, 45, 50, 60, 90].map((m) => (
+                  <option key={m} value={m}>
+                    {m} min
+                  </option>
+                ))}
+              </select>
+            }
+          />
+          <Row
+            icon={I.coffee}
+            color="green"
+            title="Break Length"
+            trailing={
+              <select value={settings.breakMinutes} onChange={(e) => actions.updateSettings({ breakMinutes: Number(e.target.value) })} aria-label="Break length" className="bg-transparent t-body text-ink-2 text-right outline-none">
+                {[3, 5, 10, 15, 20].map((m) => (
+                  <option key={m} value={m}>
+                    {m} min
+                  </option>
+                ))}
+              </select>
+            }
+          />
+        </Group>
+
+        <Group header="Data" footer="Everything is stored on this device. Download a backup to move it or keep it safe.">
+          <Row icon={I.export} color="blue" title="Download Backup" onClick={exportData} />
+          <Row icon={I.import} color="indigo" title="Restore Backup" onClick={() => fileRef.current?.click()} />
+        </Group>
+
+        <Group>
+          <Row title="Reset Everything" destructive onClick={() => setConfirmReset(true)} />
+        </Group>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="application/json,.json"
+          className="sr-only"
+          onChange={(e) => {
+            void importData(e.target.files?.[0]);
+            e.target.value = "";
+          }}
+        />
       </div>
+
+      <Dialog open={confirmReset} onClose={() => setConfirmReset(false)} title="Reset everything?">
+        <p className="t-subhead text-ink-2">This deletes your decks, progress, XP, streaks and awards on this device. Download a backup first if you might want them back.</p>
+        <div className="grid grid-cols-2 gap-2 mt-6">
+          <Button variant="gray" onClick={() => setConfirmReset(false)}>
+            Cancel
+          </Button>
+          <Button
+            color="red"
+            onClick={() => {
+              actions.resetAll();
+              setConfirmReset(false);
+              toast.success("Fresh start", { description: "Sample decks restored." });
+            }}
+          >
+            Reset
+          </Button>
+        </div>
+      </Dialog>
     </div>
   );
 }

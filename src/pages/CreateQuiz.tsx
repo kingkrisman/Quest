@@ -1,695 +1,453 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { supabase, handleSupabaseError, OperationType } from "../lib/supabase";
-import { useAuth } from "../contexts/AuthContext";
-import { Sparkles, Save, ArrowLeft, Plus, Trash2, HelpCircle, CheckCircle2, FileUp, FileText, X, Copy } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
-import { generateQuizFromTopic, generateFlashcards } from "../lib/gemini";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { AnimatePresence, Reorder, useDragControls } from "motion/react";
+import { actions, uid, useStore, type Item } from "../lib/store";
+import { blankItem, blankQuestion, isQuizDeck, parseImport } from "../lib/deck";
+import { Button, DeckTile, Dialog, Kbd, Segmented } from "../components/ui";
+import { COLORS, DECK_ICONS, I, colorVar, type ColorKey, type DeckIconKey } from "../components/icons";
+import { toast } from "../components/Toaster";
+import { confetti } from "../lib/feedback";
+import { spring } from "../lib/motion";
 import { cn } from "../lib/utils";
-import { CustomLoader } from "../components/CustomLoader";
 
-export function CreateQuiz() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [aiGenerating, setAiGenerating] = useState(false);
-  const [numQuestions, setNumQuestions] = useState(5);
-  const [topic, setTopic] = useState("");
-  const [files, setFiles] = useState<{ name: string, mimeType: string, data: string }[]>([]);
-  const [globalTimeLimit, setGlobalTimeLimit] = useState(20);
-  const [generationType, setGenerationType] = useState<"quiz" | "flashcards">("quiz");
-  
-  const [quizData, setQuizData] = useState({
-    title: "",
-    description: "",
-    questions: [
-      { id: "1", text: "", options: ["", "", "", ""], correctOptionIndex: 0, points: 1000, timeLimit: 20 }
-    ]
-  });
+type Kind = "cards" | "quiz";
+const DRAFT_KEY = "kawe:draft";
+const ICON_KEYS = Object.keys(DECK_ICONS) as DeckIconKey[];
+const PICKABLE_COLORS = COLORS.filter((c) => c !== "gray");
 
-  const [flashcardData, setFlashcardData] = useState<{ title: string, description: string, cards: { front: string, back: string }[] } | null>(null);
-  const [pastedContent, setPastedContent] = useState("");
-  const [parsingError, setParsingError] = useState("");
+interface Draft {
+  title: string;
+  description: string;
+  icon: DeckIconKey;
+  color: ColorKey;
+  kind: Kind;
+  items: Item[];
+}
 
-  const parseQuizContent = (text: string) => {
-    try {
-      setParsingError("");
+const emptyDraft = (): Draft => ({
+  title: "",
+  description: "",
+  icon: "book",
+  color: PICKABLE_COLORS[Math.floor(Math.random() * PICKABLE_COLORS.length)],
+  kind: "cards",
+  items: [blankItem(), blankItem(), blankItem()],
+});
 
-      // Split by "Answers" or "Answer Key" section
-      const parts = text.split(/Answers?[\s:]*/i);
-      const questionSection = parts[0];
-      const answerSection = parts[1];
+function convert(items: Item[], to: Kind): Item[] {
+  if (to === "quiz") return items.map((it) => (it.options ? it : { ...it, options: [it.answer, "", "", ""], correctIndex: 0 }));
+  return items.map(({ options: _o, correctIndex: _c, ...rest }) => rest);
+}
 
-      const lines = questionSection.split('\n').map(l => l.trim()).filter(l => l);
-      const questions: any[] = [];
-      let currentQuestion: any = null;
+const fieldCls = "w-full bg-transparent outline-none resize-none placeholder:text-ink-3";
 
-      // Parse questions and options
-      for (const line of lines) {
-        // Match question number (1., 2., etc.)
-        const questionMatch = line.match(/^(\d+)\.\s+(.+)/);
-        if (questionMatch) {
-          if (currentQuestion && currentQuestion.options.filter((o: string) => o).length >= 2) {
-            questions.push(currentQuestion);
-          }
-          currentQuestion = {
-            id: String(questions.length + 1),
-            text: questionMatch[2],
-            options: ["", "", "", ""],
-            correctOptionIndex: 0,
-            points: 1000,
-            timeLimit: 20
-          };
-          continue;
-        }
+function ItemRow({
+  item,
+  index,
+  kind,
+  showErrors,
+  onChange,
+  onRemove,
+  onDuplicate,
+  autoFocus,
+}: {
+  item: Item;
+  index: number;
+  kind: Kind;
+  showErrors: boolean;
+  onChange: (patch: Partial<Item>) => void;
+  onRemove: () => void;
+  onDuplicate: () => void;
+  autoFocus: boolean;
+}) {
+  const controls = useDragControls();
+  const promptMissing = showErrors && !item.prompt.trim();
+  const answerMissing = showErrors && (kind === "quiz" ? (item.options ?? []).filter((o) => o.trim()).length < 2 : !item.answer.trim());
 
-        // Match options (A., B., C., D.)
-        const optionMatch = line.match(/^([A-D])\.\s+(.+)/);
-        if (optionMatch && currentQuestion) {
-          const optionIndex = optionMatch[1].charCodeAt(0) - 65;
-          currentQuestion.options[optionIndex] = optionMatch[2];
-        }
-      }
-
-      // Add last question
-      if (currentQuestion && currentQuestion.options.filter((o: string) => o).length >= 2) {
-        questions.push(currentQuestion);
-      }
-
-      if (questions.length === 0) {
-        setParsingError("No questions found. Please use format: 1. Question text\\nA. Option\\nB. Option\\nC. Option\\nD. Option");
-        return;
-      }
-
-      // Parse answer key if provided
-      if (answerSection) {
-        const answerLines = answerSection.split('\n').map(l => l.trim()).filter(l => l);
-        for (const answerLine of answerLines) {
-          const answerMatch = answerLine.match(/^(\d+)\.\s*([A-D])/i);
-          if (answerMatch) {
-            const questionNum = parseInt(answerMatch[1]);
-            const answerLetter = answerMatch[2].toUpperCase();
-            if (questionNum > 0 && questionNum <= questions.length) {
-              questions[questionNum - 1].correctOptionIndex = answerLetter.charCodeAt(0) - 65;
-            }
-          }
-        }
-      }
-
-      setQuizData({
-        title: "",
-        description: "",
-        questions
-      });
-      setPastedContent("");
-    } catch (err) {
-      setParsingError("Failed to parse quiz content. Please check the format.");
-      console.error(err);
-    }
-  };
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = e.target.files;
-    if (!selectedFiles) return;
-
-    for (let i = 0; i < selectedFiles.length; i++) {
-        const file = selectedFiles[i];
-        if (file.size > 10 * 1024 * 1024) {
-            alert(`File ${file.name} is too large. Max size is 10MB.`);
-            continue;
-        }
-
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const raw = event.target?.result as string;
-            const base64 = raw.split(",")[1];
-            setFiles(prev => [...prev, { name: file.name, mimeType: file.type, data: base64 }]);
-        };
-        reader.onerror = () => {
-            console.error("File reading failed");
-        };
-        reader.readAsDataURL(file);
-    }
-    // Clear input so same file can be selected again
-    e.target.value = '';
-  };
-
-  const removeFile = (index: number) => {
-    setFiles(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleAiGenerate = async () => {
-    if (!topic && files.length === 0) return;
-    setAiGenerating(true);
-    try {
-      const topicAndContent = files.length > 0 ? files : topic;
-      
-      if (generationType === "quiz") {
-        const generated = await generateQuizFromTopic(topicAndContent, numQuestions, globalTimeLimit);
-        setQuizData({
-          title: generated.title || "",
-          description: generated.description || "",
-          questions: generated.questions.map((q: any, i: number) => ({
-            ...q,
-            id: String(i + 1),
-            points: q.points || 1000,
-            timeLimit: q.timeLimit || globalTimeLimit
-          }))
-        });
-        setFlashcardData(null);
-      } else {
-        const generated = await generateFlashcards(topicAndContent, numQuestions);
-        setFlashcardData({
-          title: generated.title || "",
-          description: generated.description || "",
-          cards: generated.cards || []
-        });
-      }
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : "Failed to generate content";
-      console.error(err);
-      alert("AI generation failed: " + errorMsg + "\n\nYou can still manually create quizzes/flashcards below.");
-    } finally {
-      setAiGenerating(false);
-    }
-  };
-
-  const addQuestion = () => {
-    setQuizData(prev => ({
-      ...prev,
-      questions: [
-        ...prev.questions,
-        { id: String(Date.now()), text: "", options: ["", "", "", ""], correctOptionIndex: 0, points: 1000, timeLimit: 20 }
-      ]
-    }));
-  };
-
-  const removeQuestion = (id: string) => {
-    if (quizData.questions.length === 1) return;
-    setQuizData(prev => ({
-      ...prev,
-      questions: prev.questions.filter(q => q.id !== id)
-    }));
-  };
-
-  const updateQuestion = (id: string, updates: any) => {
-    setQuizData(prev => ({
-      ...prev,
-      questions: prev.questions.map(q => q.id === id ? { ...q, ...updates } : q)
-    }));
-  };
-
-  const handleSubmit = async (e: any) => {
-    e.preventDefault();
-    if (!user) {
-      alert("You must sign in to save a quiz.");
-      return;
-    }
-    if (!quizData.title || quizData.questions.some(q => !q.text || q.options.some(o => !o))) {
-      alert("Please fill in all fields.");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      if (generationType === "quiz") {
-        const { data, error } = await supabase.from('quizzes').insert({
-          creator_id: user.id,
-          title: quizData.title,
-          description: quizData.description || null,
-          questions: quizData.questions,
-        }).select();
-        if (error) {
-          console.error("Supabase error:", error);
-          throw new Error(error.message || "Failed to save quiz");
-        }
-        alert("Quiz saved successfully!");
-        navigate("/dashboard");
-      } else {
-        if (!flashcardData?.title) {
-          alert("Please give your flashcard set a title.");
-          return;
-        }
-        if (!flashcardData?.cards || flashcardData.cards.length === 0) {
-          alert("Please generate or create at least one flashcard.");
-          return;
-        }
-        const { data, error } = await supabase.from('flashcard_sets').insert({
-          creator_id: user.id,
-          title: flashcardData.title,
-          description: flashcardData.description || null,
-          cards: flashcardData.cards,
-        }).select();
-        if (error) {
-          console.error("Supabase error:", error);
-          throw new Error(error.message || "Failed to save flashcard set");
-        }
-        alert("Flashcard set saved successfully!");
-        navigate("/dashboard");
-      }
-    } catch (err) {
-      console.error("Submit error:", err);
-      alert(err instanceof Error ? err.message : "Failed to save quiz. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+  const setOption = (i: number, v: string) => {
+    const options = [...(item.options ?? [])];
+    options[i] = v;
+    onChange({ options, answer: options[item.correctIndex ?? 0] ?? "" });
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-10">
-      <header className="flex items-center justify-between mb-8">
-        <button
-          onClick={() => navigate(-1)}
-          className="p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-all"
-        >
-          <ArrowLeft className="w-5 h-5" />
+    <Reorder.Item
+      value={item}
+      dragListener={false}
+      dragControls={controls}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.15 } }}
+      transition={spring}
+      whileDrag={{ scale: 1.02, boxShadow: "var(--shadow-float)" }}
+      className="card rounded-[4px] overflow-hidden"
+    >
+      <div className="flex items-center gap-1 h-10 pl-2 pr-1.5 border-b border-line">
+        <button onPointerDown={(e) => controls.start(e)} aria-label="Drag to reorder" className="touch-none cursor-grab active:cursor-grabbing p-1.5 rounded-md text-ink-3 hover:text-ink-2">
+          <I.grip className="w-4 h-4" />
         </button>
-        <h1 className="text-2xl font-bold text-gray-900">
-            {generationType === "quiz" ? "Create New Quiz" : "Create Study Set"}
-        </h1>
-        <button
-          onClick={handleSubmit}
-          disabled={loading}
-          className="flex items-center gap-2 px-6 py-2 text-white rounded-xl font-bold transition-all active:scale-95 disabled:opacity-50" style={{ backgroundColor: "var(--color-accent)" }}
-        >
-          <Save className="w-4 h-4" />
-          {loading ? "Saving..." : "Save Quiz"}
-        </button>
-      </header>
+        <span className="t-footnote font-semibold text-ink-2 tabular-nums">{index + 1}</span>
+        <div className="ml-auto flex">
+          <button onClick={onDuplicate} aria-label="Duplicate" className="press w-8 h-8 grid place-items-center rounded-full text-ink-2 hover:bg-fill">
+            <I.copy className="w-4 h-4" />
+          </button>
+          <button onClick={onRemove} aria-label="Delete" className="press w-8 h-8 grid place-items-center rounded-full text-red hover:bg-red/10">
+            <I.trash className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
 
-      <div className="space-y-8">
-        {/* AI Generator Section */}
-        <div className="p-8 rounded-[2.5rem] border shadow-sm" style={{ backgroundColor: "rgba(218, 119, 86, 0.05)", borderColor: "rgba(218, 119, 86, 0.2)", boxShadow: "0 4px 6px -1px rgba(218, 119, 86, 0.1)" }}>
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5" style={{ color: "var(--color-accent)" }} />
-              <h3 className="text-sm font-bold uppercase tracking-wider" style={{ color: "var(--color-accent)" }}>AI Assistant</h3>
-            </div>
-            <div className="flex bg-white p-1 rounded-xl border" style={{ borderColor: "rgba(218, 119, 86, 0.2)" }}>
-               <button
-                onClick={() => setGenerationType("quiz")}
-                className={cn("px-4 py-1.5 rounded-lg text-xs font-bold transition-all text-white", generationType === "quiz" ? "shadow-md" : "text-slate-400 bg-white")}
-                style={generationType === "quiz" ? { backgroundColor: "var(--color-accent)", boxShadow: "0 4px 6px -1px rgba(218, 119, 86, 0.2)" } : {}}
-               >
-                 QUIZ
-               </button>
-               <button
-                onClick={() => setGenerationType("flashcards")}
-                className={cn("px-4 py-1.5 rounded-lg text-xs font-bold transition-all text-white", generationType === "flashcards" ? "shadow-md" : "text-slate-400 bg-white")}
-                style={generationType === "flashcards" ? { backgroundColor: "var(--color-accent)", boxShadow: "0 4px 6px -1px rgba(218, 119, 86, 0.2)" } : {}}
-               >
-                 FLASHCARDS
-               </button>
-            </div>
-          </div>
-
-          <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1">
-                <label className="block text-[10px] font-black uppercase tracking-widest mb-2 px-1" style={{ color: "var(--color-accent)" }}>Study Topic</label>
-                <input
-                  type="text"
-                  placeholder="Enter a topic (e.g. World History, Javascript Basics...)"
-                  value={topic}
-                  onChange={(e) => setTopic(e.target.value)}
-                  className="w-full px-5 py-4 bg-white rounded-2xl focus:ring-2 focus:outline-none transition-all placeholder:text-slate-300 font-medium" style={{ borderColor: "rgba(218, 119, 86, 0.3)", border: "1px solid rgba(218, 119, 86, 0.3)", "--focus-ring": "var(--color-accent)" } as React.CSSProperties}
-                />
+      {kind === "cards" ? (
+        <div className="grid sm:grid-cols-2 sm:divide-x divide-line">
+          <label className={cn("block px-4 py-3 border-b sm:border-b-0 border-line", promptMissing && "bg-red/8")}>
+            <span className="t-footnote font-medium text-ink-2">Term</span>
+            <textarea autoFocus={autoFocus} rows={2} value={item.prompt} onChange={(e) => onChange({ prompt: e.target.value })} placeholder="Photosynthesis" className={cn(fieldCls, "t-headline mt-0.5")} />
+          </label>
+          <label className={cn("block px-4 py-3", answerMissing && "bg-red/8")}>
+            <span className="t-footnote font-medium text-ink-2">Definition</span>
+            <textarea rows={2} value={item.answer} onChange={(e) => onChange({ answer: e.target.value })} placeholder="How plants turn light into energy" className={cn(fieldCls, "t-body mt-0.5")} />
+          </label>
+        </div>
+      ) : (
+        <div>
+          <label className={cn("block px-4 py-3 border-b border-line", promptMissing && "bg-red/8")}>
+            <span className="t-footnote font-medium text-ink-2">Question</span>
+            <textarea autoFocus={autoFocus} rows={2} value={item.prompt} onChange={(e) => onChange({ prompt: e.target.value })} placeholder="Ask something…" className={cn(fieldCls, "t-headline mt-0.5")} />
+          </label>
+          {(item.options ?? []).map((opt, oi) => {
+            const correct = item.correctIndex === oi;
+            return (
+              <div key={oi} className={cn("flex items-center gap-3 pl-3 pr-4 border-b border-line", answerMissing && !opt.trim() && "bg-red/8")}>
+                <button onClick={() => onChange({ correctIndex: oi, answer: opt })} aria-label={`Mark option ${oi + 1} correct`} className="press w-8 h-8 grid place-items-center shrink-0">
+                  {correct ? <I.success className="w-6 h-6 text-green" /> : <span className="w-5.5 h-5.5 rounded-full border-[1.5px] border-ink-3" />}
+                </button>
+                <input value={opt} onChange={(e) => setOption(oi, e.target.value)} placeholder={`Option ${oi + 1}`} className={cn(fieldCls, "t-body h-11 min-w-0")} />
               </div>
-              <div className="sm:w-40">
-                <label className="block text-[10px] font-black uppercase tracking-widest mb-2 px-1" style={{ color: "var(--color-accent)" }}>Items Count</label>
-                <select
-                  value={numQuestions}
-                  onChange={(e) => setNumQuestions(Number(e.target.value))}
-                  className="w-full px-4 py-4 bg-white rounded-2xl focus:ring-2 focus:outline-none transition-all font-bold text-slate-700" style={{ borderColor: "rgba(218, 119, 86, 0.3)", border: "1px solid rgba(218, 119, 86, 0.3)" }}
-                >
-                  {[5, 10, 20, 30, 50, 75, 100].map(n => (
-                    <option key={n} value={n}>{n} {generationType === "quiz" ? "Questions" : "Cards"}</option>
-                  ))}
-                </select>
-              </div>
-              {generationType === "quiz" && (
-                <div className="sm:w-40">
-                  <label className="block text-[10px] font-black uppercase tracking-widest mb-2 px-1" style={{ color: "var(--color-accent)" }}>Time Limit</label>
-                  <select
-                    value={globalTimeLimit}
-                    onChange={(e) => setGlobalTimeLimit(Number(e.target.value))}
-                    className="w-full px-4 py-4 bg-white rounded-2xl focus:ring-2 focus:outline-none transition-all font-bold text-slate-700" style={{ borderColor: "rgba(218, 119, 86, 0.3)", border: "1px solid rgba(218, 119, 86, 0.3)" }}
-                  >
-                    {[10, 20, 30, 45, 60, 90, 120].map(n => (
-                      <option key={n} value={n}>{n} Seconds</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
+            );
+          })}
+          <label className="flex items-center gap-3 pl-4 pr-4">
+            <I.hint className="w-5 h-5 text-yellow shrink-0" />
+            <input value={item.explanation ?? ""} onChange={(e) => onChange({ explanation: e.target.value })} placeholder="Explanation (optional)" className={cn(fieldCls, "t-subhead h-11")} />
+          </label>
+        </div>
+      )}
+    </Reorder.Item>
+  );
+}
 
-            <div className="space-y-4">
-              <label className="block text-[10px] font-black uppercase tracking-widest px-1" style={{ color: "var(--color-accent)" }}>Source Documents (Optional)</label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <label
-                  htmlFor="file-upload"
-                  className="relative flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-3xl bg-white/50 hover:bg-white transition-all cursor-pointer group" style={{ borderColor: "rgba(218, 119, 86, 0.3)" }}
-                >
-                  <input
-                    id="file-upload"
-                    type="file"
-                    className="sr-only"
-                    multiple
-                    accept=".pdf,.txt"
-                    onChange={handleFileChange}
-                  />
-                  <FileUp className="w-8 h-8 group-hover:scale-110 transition-transform mb-2" style={{ color: "var(--color-accent)" }} />
-                  <span className="text-xs font-bold" style={{ color: "var(--color-accent)" }}>Upload PDF/Text</span>
-                  <span className="text-[10px] text-slate-400 mt-1 uppercase">Max 10MB per file</span>
-                </label>
+export function CreateQuiz() {
+  const { deckId } = useParams();
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const { decks } = useStore();
+  const editing = deckId ? decks.find((d) => d.id === deckId) : undefined;
 
-                <div className="flex flex-col gap-2 overflow-y-auto max-h-[120px] scrollbar-hide py-1">
-                  <AnimatePresence>
-                    {files.map((file, i) => (
-                      <motion.div
-                        key={i}
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        className="flex items-center gap-3 p-3 bg-white rounded-xl" style={{ borderColor: "rgba(218, 119, 86, 0.2)", border: "1px solid rgba(218, 119, 86, 0.2)" }}
-                      >
-                        <FileText className="w-4 h-4" style={{ color: "var(--color-accent)" }} />
-                        <span className="text-xs font-medium text-slate-600 truncate flex-1">{file.name}</span>
-                        <button 
-                          onClick={() => removeFile(i)}
-                          className="p-1 text-slate-300 hover:text-rose-500 transition-colors"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
-                  {files.length === 0 && (
-                    <div className="h-full flex items-center justify-center border border-dashed border-indigo-100 rounded-2xl bg-slate-50/30">
-                      <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">No documents attached</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+  const [draft, setDraft] = useState<Draft>(() => {
+    if (editing) return { title: editing.title, description: editing.description, icon: editing.icon, color: editing.color, kind: isQuizDeck(editing) ? "quiz" : "cards", items: editing.items };
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) {
+        const d = JSON.parse(saved) as Draft;
+        if (d.icon && d.color) return d;
+      }
+    } catch {
+      /* ignore */
+    }
+    return emptyDraft();
+  });
+  const [showErrors, setShowErrors] = useState(false);
+  const [importOpen, setImportOpen] = useState(params.get("import") === "1");
+  const [importText, setImportText] = useState("");
+  const [styleOpen, setStyleOpen] = useState(false);
+  const [lastAdded, setLastAdded] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-            <motion.button
-              onClick={handleAiGenerate}
-              disabled={aiGenerating || (!topic && files.length === 0)}
-              whileHover={!aiGenerating && (topic || files.length > 0) ? { scale: 1.02 } : {}}
-              whileTap={!aiGenerating && (topic || files.length > 0) ? { scale: 0.98 } : {}}
-              className="w-full py-5 text-white rounded-2xl font-black text-lg transition-all disabled:opacity-50 flex items-center justify-center gap-3 shadow-xl"
-              style={{ backgroundColor: "var(--color-accent)", boxShadow: "0 20px 25px -5px rgba(218, 119, 86, 0.2)" }}
-            >
-              {aiGenerating ? (
-                <motion.div
-                  className="flex items-center gap-2"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                >
-                  <motion.div
-                    className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                  />
-                  <motion.span
-                    animate={{ opacity: [1, 0.5, 1] }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
-                  >
-                    ANALYZING SUBJECT MATTER...
-                  </motion.span>
-                </motion.div>
-              ) : (
-                <motion.div
-                  className="flex items-center gap-2"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                >
-                  <motion.div
-                    animate={{ y: [-2, 2, -2] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  >
-                    <Sparkles className="w-6 h-6" />
-                  </motion.div>
-                  GENERATE {generationType.toUpperCase()} WITH AI
-                </motion.div>
-              )}
-            </motion.button>
-          </div>
+  // Autosave new-deck drafts so nothing is lost on refresh.
+  useEffect(() => {
+    if (editing) return;
+    const t = setTimeout(() => {
+      try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+      } catch {
+        /* ignore */
+      }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [draft, editing]);
+
+  const preview = useMemo(() => (importText.trim() ? parseImport(importText) : null), [importText]);
+  const patchItem = (id: string, patch: Partial<Item>) => setDraft((d) => ({ ...d, items: d.items.map((it) => (it.id === id ? { ...it, ...patch } : it)) }));
+
+  const addItem = () => {
+    const it = draft.kind === "quiz" ? blankQuestion() : blankItem();
+    setLastAdded(it.id);
+    setDraft((d) => ({ ...d, items: [...d.items, it] }));
+  };
+
+  const removeItem = (id: string) => {
+    const idx = draft.items.findIndex((i) => i.id === id);
+    const removed = draft.items[idx];
+    setDraft((d) => ({ ...d, items: d.items.filter((i) => i.id !== id) }));
+    if (removed && (removed.prompt || removed.answer)) {
+      toast.info("Item deleted", {
+        action: {
+          label: "Undo",
+          onClick: () =>
+            setDraft((d) => {
+              const items = [...d.items];
+              items.splice(idx, 0, removed);
+              return { ...d, items };
+            }),
+        },
+      });
+    }
+  };
+
+  const duplicateItem = (id: string) =>
+    setDraft((d) => {
+      const idx = d.items.findIndex((i) => i.id === id);
+      const src = d.items[idx];
+      const items = [...d.items];
+      items.splice(idx + 1, 0, { ...src, id: uid(), options: src.options ? [...src.options] : undefined });
+      return { ...d, items };
+    });
+
+  const setKind = (kind: Kind) => setDraft((d) => ({ ...d, kind, items: convert(d.items, kind) }));
+
+  const applyImport = (mode: "append" | "replace") => {
+    if (!preview || preview.items.length === 0) return;
+    setDraft((d) => {
+      const kind = preview.kind;
+      const base = mode === "replace" ? [] : convert(d.items.filter((i) => i.prompt.trim() || i.answer.trim()), kind);
+      return { ...d, kind, items: [...base, ...convert(preview.items, kind)] };
+    });
+    toast.success(`Imported ${preview.items.length} ${preview.kind === "quiz" ? "questions" : "cards"}`);
+    setImportText("");
+    setImportOpen(false);
+  };
+
+  const onFile = async (file: File | undefined) => {
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("File too large", { description: "Text imports are limited to 2 MB." });
+      return;
+    }
+    setImportText(await file.text());
+    setImportOpen(true);
+  };
+
+  const save = () => {
+    const items = draft.items
+      .map((it) => (draft.kind === "quiz" && it.options ? { ...it, answer: it.options[it.correctIndex ?? 0] ?? "" } : it))
+      .filter((it) => it.prompt.trim() || it.answer.trim() || it.options?.some((o) => o.trim()));
+
+    const invalid = items.some((it) =>
+      draft.kind === "quiz" ? !it.prompt.trim() || (it.options ?? []).filter((o) => o.trim()).length < 2 || !it.options?.[it.correctIndex ?? 0]?.trim() : !it.prompt.trim() || !it.answer.trim()
+    );
+
+    if (!draft.title.trim()) {
+      setShowErrors(true);
+      toast.error("Add a title");
+      document.getElementById("deck-title")?.focus();
+      return;
+    }
+    if (items.length === 0) {
+      setShowErrors(true);
+      toast.error("Add at least one item");
+      return;
+    }
+    if (invalid) {
+      setShowErrors(true);
+      toast.error("Some items are incomplete", { description: draft.kind === "quiz" ? "Questions need text, two options, and a filled-in correct answer." : "Each card needs a term and a definition." });
+      return;
+    }
+
+    const clean = items.map((it) => {
+      if (draft.kind !== "quiz" || !it.options) return it;
+      const correctText = it.options[it.correctIndex ?? 0];
+      const options = it.options.filter((o) => o.trim());
+      return { ...it, options, correctIndex: options.indexOf(correctText), answer: correctText };
+    });
+
+    const payload = { title: draft.title.trim(), description: draft.description.trim(), icon: draft.icon, color: draft.color, items: clean };
+    if (editing) {
+      actions.updateDeck(editing.id, payload);
+      toast.success("Saved");
+      navigate(`/deck/${editing.id}`);
+    } else {
+      const deck = actions.createDeck(payload);
+      localStorage.removeItem(DRAFT_KEY);
+      confetti({ y: 0.25, count: 70 });
+      toast.success("Deck created", { description: `${clean.length} items ready to study.` });
+      navigate(`/deck/${deck.id}`);
+    }
+  };
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      if (e.key === "s") {
+        e.preventDefault();
+        save();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        addItem();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  return (
+    <div className="pb-16">
+      {/* Nav bar */}
+      <div className="sticky top-0 z-30 material border-b border-line">
+        <div className="max-w-2xl mx-auto px-4 sm:px-8 h-12 grid grid-cols-[1fr_auto_1fr] items-center">
+          <button onClick={() => navigate(-1)} className="justify-self-start t-body text-accent press">
+            Cancel
+          </button>
+          <span className="t-headline text-ink">{editing ? "Edit Deck" : "New Deck"}</span>
+          <button onClick={save} className="justify-self-end t-body font-semibold text-accent press">
+            {editing ? "Done" : "Create"}
+          </button>
+        </div>
+      </div>
+
+      <div className="max-w-2xl mx-auto px-4 sm:px-8 pt-6">
+        {/* Identity */}
+        <div className="text-center">
+          <button onClick={() => setStyleOpen(true)} aria-label="Change icon and color" className="press inline-block">
+            <DeckTile icon={draft.icon} color={draft.color} size={80} className="shadow-[0_12px_32px_-12px_rgba(0,0,0,0.35)]" />
+          </button>
+          <input
+            id="deck-title"
+            value={draft.title}
+            onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
+            placeholder="Deck Title"
+            className={cn("block w-full mt-4 text-center t-title1 bg-transparent outline-none placeholder:text-ink-3", showErrors && !draft.title.trim() && "placeholder:text-red/60")}
+          />
+          <input value={draft.description} onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))} placeholder="Add a description" className="block w-full mt-1 text-center t-subhead text-ink-2 bg-transparent outline-none placeholder:text-ink-3" />
         </div>
 
-        {/* Paste Quiz Content */}
-        {generationType === "quiz" && (
-          <div className="p-8 rounded-[2.5rem] border shadow-sm" style={{ backgroundColor: "rgba(251, 191, 36, 0.05)", borderColor: "rgba(251, 191, 36, 0.2)", boxShadow: "0 4px 6px -1px rgba(251, 191, 36, 0.1)" }}>
-            <div className="flex items-center gap-2 mb-4">
-              <Copy className="w-5 h-5" style={{ color: "var(--color-accent)" }} />
-              <h3 className="text-sm font-bold uppercase tracking-wider" style={{ color: "var(--color-accent)" }}>Paste Quiz Content</h3>
-            </div>
-            <p className="text-xs text-slate-500 mb-4">Paste your raw quiz questions, options, and answer key. Use the format shown in the example below. The answer key is optional but recommended.</p>
-            <div className="flex gap-3">
-              <textarea
-                value={pastedContent}
-                onChange={(e) => setPastedContent(e.target.value)}
-                placeholder="1. Conflict originated from the Latin word ______
-A. Conflito
-B. Confligere
-C. Conflictus
-D. Confringo
+        <div className="flex flex-wrap items-center justify-center gap-2 mt-6">
+          <Segmented<Kind>
+            value={draft.kind}
+            onChange={setKind}
+            options={[
+              { value: "cards", label: "Flashcards", icon: I.cards },
+              { value: "quiz", label: "Multiple Choice", icon: I.checklist },
+            ]}
+          />
+        </div>
+        <div className="flex flex-wrap justify-center gap-2 mt-3">
+          <Button variant="tinted" size="sm" icon={I.paste} onClick={() => setImportOpen(true)}>
+            Paste Text
+          </Button>
+          <Button variant="tinted" size="sm" icon={I.import} onClick={() => fileRef.current?.click()}>
+            Import File
+          </Button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".txt,.csv,.tsv,.md,text/plain"
+            className="sr-only"
+            onChange={(e) => {
+              void onFile(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+          />
+        </div>
 
-2. Conflict is mainly a struggle over ______
-A. Entertainment
-B. Values, power and resources
-C. Friendship
-D. Language
-
-Answers
-1. C
-2. B"
-                className="flex-1 px-4 py-4 bg-white rounded-2xl focus:ring-2 focus:outline-none transition-all placeholder:text-slate-300 font-mono text-sm" style={{ borderColor: "rgba(251, 191, 36, 0.3)", border: "1px solid rgba(251, 191, 36, 0.3)" }}
-                rows={8}
+        {/* Items */}
+        <Reorder.Group axis="y" values={draft.items} onReorder={(items) => setDraft((d) => ({ ...d, items }))} className="mt-7 space-y-3">
+          <AnimatePresence initial={false}>
+            {draft.items.map((item, i) => (
+              <ItemRow
+                key={item.id}
+                item={item}
+                index={i}
+                kind={draft.kind}
+                showErrors={showErrors && Boolean(item.prompt || item.answer || item.options?.some(Boolean))}
+                onChange={(p) => patchItem(item.id, p)}
+                onRemove={() => removeItem(item.id)}
+                onDuplicate={() => duplicateItem(item.id)}
+                autoFocus={item.id === lastAdded}
               />
-              <button
-                onClick={() => parseQuizContent(pastedContent)}
-                disabled={!pastedContent.trim()}
-                className="px-6 py-4 text-white rounded-2xl font-black text-sm transition-all disabled:opacity-50 self-start h-fit"
-                style={{ backgroundColor: "var(--color-accent)" }}
-              >
-                Parse Quiz
-              </button>
-            </div>
-            {parsingError && (
-              <motion.p
-                initial={{ opacity: 0, y: -5 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mt-3 text-xs font-bold text-rose-500"
-              >
-                {parsingError}
-              </motion.p>
-            )}
-          </div>
-        )}
+            ))}
+          </AnimatePresence>
+        </Reorder.Group>
 
-        {/* Generated Content Preview */}
-        {generationType === "quiz" ? (
-          <form className="space-y-6">
-            <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-4">
-              {/* Quiz Settings */}
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Quiz Identity</label>
-                <input
-                  type="text"
-                  value={quizData.title}
-                  onChange={(e) => setQuizData({ ...quizData, title: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all text-xl font-bold"
-                  placeholder="Name your quiz..."
-                />
-              </div>
-              <div>
-                <textarea
-                  value={quizData.description}
-                  onChange={(e) => setQuizData({ ...quizData, description: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all font-medium text-slate-500"
-                  rows={2}
-                  placeholder="What is this quiz about?"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              <div className="flex items-center justify-between px-2">
-                <h3 className="text-xl font-black text-gray-900 tracking-tight">Question Backlog</h3>
-                <span className="px-3 py-1 bg-slate-100 rounded-full text-[10px] font-black text-slate-500 uppercase tracking-widest">{quizData.questions.length} Items</span>
-              </div>
-              
-              {quizData.questions.map((question, qIdx) => (
-                <motion.div
-                  key={question.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm relative group"
-                >
-                  <button
-                    type="button"
-                    onClick={() => removeQuestion(question.id)}
-                    className="absolute top-6 right-6 p-2 text-gray-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
-
-                  <div className="flex items-start gap-4 mb-8">
-                    <div className="w-10 h-10 bg-slate-900 text-white rounded-2xl flex items-center justify-center font-black text-lg shrink-0">
-                      {qIdx + 1}
-                    </div>
-                    <input
-                      type="text"
-                      value={question.text}
-                      onChange={(e) => updateQuestion(question.id, { text: e.target.value })}
-                      className="flex-1 px-4 py-2 text-2xl font-black border-b-2 border-transparent focus:border-indigo-600 focus:outline-none bg-transparent transition-all tracking-tight leading-tight placeholder:text-slate-200"
-                      placeholder="Ask a question..."
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {question.options.map((option, oIdx) => (
-                      <div 
-                        key={oIdx} 
-                        className={cn(
-                          "relative flex items-center p-2 rounded-2xl border-2 transition-all",
-                          question.correctOptionIndex === oIdx 
-                            ? "border-emerald-500 bg-emerald-50" 
-                            : "border-slate-50 bg-slate-50 shadow-inner"
-                        )}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => updateQuestion(question.id, { correctOptionIndex: oIdx })}
-                          className={cn(
-                            "w-10 h-10 flex items-center justify-center rounded-xl mr-3 transition-all shrink-0",
-                            question.correctOptionIndex === oIdx 
-                              ? "bg-emerald-500 text-white shadow-lg shadow-emerald-100" 
-                              : "bg-white text-slate-300 hover:opacity-70"
-                          )}
-                        >
-                          {question.correctOptionIndex === oIdx ? <CheckCircle2 className="w-6 h-6" /> : <div className="w-4 h-4 border-2 border-current rounded-full" />}
-                        </button>
-                        <input
-                          type="text"
-                          value={option}
-                          onChange={(e) => {
-                            const newOptions = [...question.options];
-                            newOptions[oIdx] = e.target.value;
-                            updateQuestion(question.id, { options: newOptions });
-                          }}
-                          className="flex-1 bg-transparent py-2 pr-4 focus:outline-none font-bold text-slate-700"
-                          placeholder={`${String.fromCharCode(65 + oIdx)} Option`}
-                        />
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-8 pt-6 border-t border-slate-50 flex items-center gap-8">
-                    <div className="flex items-center gap-3">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Velocity Points</span>
-                      <select
-                        value={question.points}
-                        onChange={(e) => updateQuestion(question.id, { points: Number(e.target.value) })}
-                        className="text-xs font-black bg-slate-50 border-none rounded-lg py-1.5 px-3 focus:ring-0 cursor-pointer" style={{ color: "var(--color-accent)" }}
-                      >
-                        <option value={500}>500</option>
-                        <option value={1000}>1000</option>
-                        <option value={2000}>2000</option>
-                      </select>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sprint Timer</span>
-                      <select
-                        value={question.timeLimit}
-                        onChange={(e) => updateQuestion(question.id, { timeLimit: Number(e.target.value) })}
-                        className="text-xs font-black bg-slate-50 border-none rounded-lg py-1.5 px-3 focus:ring-0 cursor-pointer" style={{ color: "var(--color-accent)" }}
-                      >
-                        <option value={10}>10s</option>
-                        <option value={20}>20s</option>
-                        <option value={30}>30s</option>
-                        <option value={60}>60s</option>
-                        <option value={90}>90s</option>
-                        <option value={120}>120s</option>
-                      </select>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-
-              <button
-                type="button"
-                onClick={addQuestion}
-                className="w-full py-8 rounded-[2.5rem] border-2 border-dashed border-slate-200 text-slate-400 font-black transition-all flex items-center justify-center gap-3 group hover:text-white" style={{ '--hover-border': 'var(--color-accent)', '--hover-bg': 'rgba(218, 119, 86, 0.05)' } as React.CSSProperties}
-              >
-                <div className="w-10 h-10 rounded-full border-2 border-current flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Plus className="w-6 h-6" />
-                </div>
-                ADD MANUAL STORY
-              </button>
-            </div>
-          </form>
-        ) : (
-          <div className="space-y-6">
-            <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-4">
-               <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Set Identity</label>
-                  <input
-                    type="text"
-                    value={flashcardData?.title || ""}
-                    onChange={(e) => setFlashcardData(prev => prev ? { ...prev, title: e.target.value } : null)}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all text-xl font-bold"
-                    placeholder="Name your set..."
-                  />
-                </div>
-                <div>
-                  <textarea
-                    value={flashcardData?.description || ""}
-                    onChange={(e) => setFlashcardData(prev => prev ? { ...prev, description: e.target.value } : null)}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all font-medium text-slate-500"
-                    rows={2}
-                    placeholder="What is this set about?"
-                  />
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {flashcardData?.cards.map((card, idx) => (
-                <motion.div 
-                   key={idx}
-                   initial={{ opacity: 0, y: 10 }}
-                   animate={{ opacity: 1, y: 0 }}
-                   className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm flex flex-col gap-4"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: "var(--color-accent)" }}>Card #{idx + 1}</span>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="p-4 rounded-2xl border" style={{ backgroundColor: "rgba(218, 119, 86, 0.05)", borderColor: "rgba(218, 119, 86, 0.1)" }}>
-                      <p className="text-[10px] font-bold uppercase tracking-widest mb-1 italic" style={{ color: "var(--color-accent)" }}>Front</p>
-                      <p className="font-bold text-slate-900">{card.front}</p>
-                    </div>
-                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 italic">Back</p>
-                      <p className="font-medium text-slate-600 line-clamp-3">{card.back}</p>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-             {!flashcardData && (
-                <div className="py-24 text-center bg-white rounded-[3rem] border-2 border-dashed border-slate-100">
-                  <Sparkles className="w-12 h-12 text-slate-200 mx-auto mb-4" />
-                  <h3 className="text-xl font-black text-slate-900">No cards generated yet</h3>
-                  <p className="text-slate-400 mt-1 font-medium">Use the AI Assistant above to create a study set.</p>
-                </div>
-              )}
-          </div>
-        )
-        }
+        <button onClick={addItem} className="press w-full mt-3 h-12 rounded-[4px] card flex items-center justify-center gap-2 t-body font-medium text-accent">
+          <I.plus className="w-4 h-4" /> Add {draft.kind === "quiz" ? "Question" : "Card"}
+        </button>
+        <p className="text-center t-footnote text-ink-3 mt-4 hidden sm:block">
+          <Kbd>Ctrl</Kbd> <Kbd>Enter</Kbd> add item · <Kbd>Ctrl</Kbd> <Kbd>S</Kbd> save
+        </p>
       </div>
+
+      {/* Icon & color */}
+      <Dialog open={styleOpen} onClose={() => setStyleOpen(false)} title="Icon & Color">
+        <div className="flex justify-center mb-5">
+          <DeckTile icon={draft.icon} color={draft.color} size={72} />
+        </div>
+        <div className="flex flex-wrap justify-center gap-2.5">
+          {PICKABLE_COLORS.map((c) => (
+            <button
+              key={c}
+              onClick={() => setDraft((d) => ({ ...d, color: c }))}
+              aria-label={c}
+              className="press w-9 h-9 rounded-full grid place-items-center"
+              style={{ background: colorVar(c), boxShadow: draft.color === c ? `0 0 0 3px var(--c-elevated), 0 0 0 5px ${colorVar(c)}` : undefined }}
+            />
+          ))}
+        </div>
+        <div className="grid grid-cols-5 gap-2.5 mt-6">
+          {ICON_KEYS.map((k) => {
+            const Glyph = DECK_ICONS[k];
+            const active = draft.icon === k;
+            return (
+              <button
+                key={k}
+                onClick={() => setDraft((d) => ({ ...d, icon: k }))}
+                aria-label={k}
+                className={cn("press aspect-square rounded-full grid place-items-center transition-colors", active ? "text-white" : "bg-fill text-ink-2")}
+                style={active ? { background: colorVar(draft.color) } : undefined}
+              >
+                <Glyph className="w-6 h-6" />
+              </button>
+            );
+          })}
+        </div>
+        <Button className="w-full mt-6" onClick={() => setStyleOpen(false)}>
+          Done
+        </Button>
+      </Dialog>
+
+      {/* Import */}
+      <Dialog open={importOpen} onClose={() => setImportOpen(false)} title="Paste Text" className="sm:max-w-xl">
+        <p className="t-subhead text-ink-2 mb-3">
+          One <b className="text-ink font-semibold">term – definition</b> pair per line (tab or dash separated, like Quizlet exports), or numbered multiple-choice questions with an optional <b className="text-ink font-semibold">Answers</b> key.
+        </p>
+        <textarea
+          autoFocus
+          value={importText}
+          onChange={(e) => setImportText(e.target.value)}
+          rows={9}
+          placeholder={"Mitochondria - Powerhouse of the cell\nOsmosis - Movement of water across a membrane\n\n1. What is the capital of Kenya?\nA. Mombasa\nB. Nairobi\nC. Kisumu\nD. Nakuru\n\nAnswers\n1. B"}
+          className="w-full rounded-xl bg-fill px-4 py-3 font-mono text-[13px] leading-relaxed outline-none focus:ring-2 ring-accent/60 placeholder:text-ink-3 resize-y"
+        />
+        <p className={cn("t-footnote font-medium mt-3 flex items-center gap-1.5", preview?.items.length ? "text-green" : "text-ink-2")}>
+          <I.magic className="w-4 h-4" />
+          {preview ? (preview.items.length ? `Found ${preview.items.length} ${preview.kind === "quiz" ? "questions" : "cards"}` : "Nothing recognized yet") : "Waiting for text"}
+        </p>
+        <div className="grid grid-cols-2 gap-2 mt-4">
+          <Button variant="gray" disabled={!preview?.items.length} onClick={() => applyImport("append")}>
+            Add to Deck
+          </Button>
+          <Button disabled={!preview?.items.length} onClick={() => applyImport("replace")}>
+            Replace Items
+          </Button>
+        </div>
+      </Dialog>
     </div>
   );
 }
